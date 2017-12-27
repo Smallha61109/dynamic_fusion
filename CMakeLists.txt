@@ -70,7 +70,7 @@ warnings_disable(CMAKE_CXX_FLAGS /wd4985)
 
 add_subdirectory(kfusion)
 add_subdirectory(apps)
-set(BUILD_TESTS ON)
+set(BUILD_TESTS OFF)
 set(OPT_INCLUDE_DIRS /home/mihai/Projects/Opt/examples/external/mLib/include /home/mihai/Projects/Opt/examples/shared/ /home/mihai/Projects/Opt/API/release/include /home/mihai/Projects/Opt/examples/external/OpenMesh/include)
 # set(OPT_INCLUDE_DIRS /home/mihai/Projects/Opt/examples/external/mLib/include /home/mihai/Projects/Opt/examples/shared/ /home/mihai/Projects/Opt/API/release/include /home/mihai/Projects/Opt/examples/external/OpenMesh/include)
 set(OPT_LIBRARIES /home/mihai/Projects/Opt/API/release/lib/libOptDev.a)
