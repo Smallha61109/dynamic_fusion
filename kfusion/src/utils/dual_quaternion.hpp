@@ -1,4 +1,4 @@
-ifndef DYNAMIC_FUSION_DUAL_QUATERNION_HPP
+#ifndef DYNAMIC_FUSION_DUAL_QUATERNION_HPP
 #define DYNAMIC_FUSION_DUAL_QUATERNION_HPP
 #include<iostream>
 #include<quaternion.hpp>
