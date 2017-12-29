@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5.0)
 
 # ---[ Configurations types
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Possible configurations" FORCE)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -DFORCE_INLINERS -D_MWAITXINTRIN_H_INCLUDED -Wno-write-strings")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -DFORCE_INLINERS -D_MWAITXINTRIN_H_INCLUDED -Wno-write-strings")
 set(CMAKE_CXX_STANDARD 11)
 if (DEFINED CMAKE_BUILD_TYPE)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS ${CMAKE_CONFIGURATION_TYPES})
@@ -70,7 +70,7 @@ warnings_disable(CMAKE_CXX_FLAGS /wd4985)
 
 add_subdirectory(kfusion)
 add_subdirectory(apps)
-set(BUILD_TESTS ON)
+set(BUILD_TESTS OFF)
 set(OPT_INCLUDE_DIRS /home/mihai/Projects/Opt/examples/external/mLib/include /home/mihai/Projects/Opt/examples/shared/ /home/mihai/Projects/Opt/API/release/include /home/mihai/Projects/Opt/examples/external/OpenMesh/include)
 # set(OPT_INCLUDE_DIRS /home/mihai/Projects/Opt/examples/external/mLib/include /home/mihai/Projects/Opt/examples/shared/ /home/mihai/Projects/Opt/API/release/include /home/mihai/Projects/Opt/examples/external/OpenMesh/include)
 set(OPT_LIBRARIES /home/mihai/Projects/Opt/API/release/lib/libOptDev.a)
