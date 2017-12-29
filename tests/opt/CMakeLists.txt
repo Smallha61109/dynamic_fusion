@@ -21,7 +21,9 @@ target_link_libraries(
 
 target_include_directories(
         opt_test PUBLIC
+        ${OPT_HEADER_PATH}
         ${OPT_INCLUDE_DIRS}
+        ${OPENMESH_INCLUDE_DIRS}
         ${CUDA_INCLUDE_DIRS}
         ${CMAKE_SOURCE_DIR}/kfusion/include/
         include
