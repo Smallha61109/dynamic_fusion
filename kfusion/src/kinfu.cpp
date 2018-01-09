@@ -274,8 +274,10 @@ bool kfusion::KinFu::operator()(const kfusion::cuda::Depth& depth, const kfusion
 #else
         bool ok = icp_->estimateTransform(affine, p.intr, curr_.points_pyr, curr_.normals_pyr, prev_.points_pyr, prev_.normals_pyr);
 #endif
-        if (!ok)
-            return reset(), false;
+		if (!ok)
+			return reset(), false;
+		else
+			std::cout << "ok" << std::endl;
     }
 
     poses_.push_back(poses_.back() * affine); // curr -> global
@@ -284,6 +286,7 @@ bool kfusion::KinFu::operator()(const kfusion::cuda::Depth& depth, const kfusion
     auto pts = curr_.points_pyr[0];
     auto n = curr_.normals_pyr[0];
     dynamicfusion(d, pts, n);
+	// volume_->integrate(dists_, poses_.back(), p.intr);
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -356,6 +359,7 @@ void kfusion::KinFu::dynamicfusion(cuda::Depth& depth, cuda::Cloud current_frame
     cloud.download(cloud_host.ptr<Point>(), cloud_host.step);
     std::vector<Vec3f> warped(cloud_host.rows * cloud_host.cols);
     auto inverse_pose = camera_pose.inv(cv::DECOMP_SVD);
+    //TODO: check here
     for (int i = 0; i < cloud_host.rows; i++)
         for (int j = 0; j < cloud_host.cols; j++) {
             Point point = cloud_host.at<Point>(i, j);
@@ -378,9 +382,11 @@ void kfusion::KinFu::dynamicfusion(cuda::Depth& depth, cuda::Cloud current_frame
         }
 
     std::vector<Vec3f> canonical_visible(warped);
+    // FIXME: fix energy regularization and all energy function
 //    getWarp().energy_data(warped, warped_normals, warped, warped_normals); //crashes, leave out for now
 
-    getWarp().warp(warped, warped_normals);
+    // TODO: getwarp.warp() always run into nan so this is not functioning
+    // getWarp().warp(warped, warped_normals);
 //    //ScopeTime time("fusion");
     tsdf().surface_fusion(getWarp(), warped, canonical_visible, depth, camera_pose, params_.intr);
 
