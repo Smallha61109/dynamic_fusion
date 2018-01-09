@@ -96,8 +96,14 @@ namespace kfusion
                         int weight_prev;
                         float tsdf_prev = unpack_tsdf (gmem::LdCs(vptr), weight_prev);
 
+                        //===============origin===========================================
                         float tsdf_new = __fdividef(__fmaf_rn(tsdf_prev, weight_prev, tsdf), weight_prev + 1);
                         int weight_new = min (weight_prev + 1, volume.max_weight);
+                        //<<============================================================>>
+                        /* int wrk = (3.5f - Dp)/0.5f; */
+                        /* float tsdf_new = __fdividef(__fmaf_rn(tsdf_prev, weight_prev, tsdf), weight_prev + wrk); */
+                        /* int weight_new = min (weight_prev + wrk, volume.max_weight); */
+                        //===============fix with algorithm===============================
 
                         //pack and write
                         gmem::StCs(pack_tsdf (tsdf_new, weight_new), vptr);
