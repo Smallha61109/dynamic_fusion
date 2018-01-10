@@ -12,6 +12,42 @@ namespace kfusion
         {
             int x = threadIdx.x + blockIdx.x * blockDim.x;
             int y = threadIdx.y + blockIdx.y * blockDim.y;
+            if (x >= src.cols || y >= src.rows) return;
+
+            const int R = ksz;
+            const int D = R * 2 + 1;
+            int value = src.ptr (y)[x];
+            int tx = min (x - D / 2 + D, src.cols - 1);
+            int ty = min (y - D / 2 + D, src.rows - 1);
+            float sum1 = 0;
+            float sum2 = 0;
+
+            for (int cy = max (y - D / 2, 0); cy < ty; ++cy)
+            {
+                for (int cx = max (x - D / 2, 0); cx < tx; ++cx)
+                {
+                    int tmp = src.ptr (cy)[cx];
+
+                    float space2 = (x - cx) * (x - cx) + (y - cy) * (y - cy);
+                    float color2 = (value - tmp) * (value - tmp);
+
+                    float weight = __expf (-(space2 * sigma_spatial2_inv_half + color2 * sigma_depth2_inv_half));
+
+                    sum1 += tmp * weight;
+                    sum2 += weight;
+                }
+            }
+            int ans = __float2int_rn (sum1 / sum2);
+            int res = max (0, min (ans, numeric_limits<unsigned short>::max ()));
+            dst.ptr (y)[x] = res;
+
+            /*
+            int x = threadIdx.x + blockIdx.x * blockDim.x;
+            int y = threadIdx.y + blockIdx.y * blockDim.y;
+            int tx = min (x - D / 2 + D, src.cols - 1);
+            int ty = min (y - D / 2 + D, src.rows - 1);
+            float sum1 = 0;
+            float sum2 = 0;
 
             if (x >= src.cols || y >= src.rows)
                 return;
@@ -40,6 +76,7 @@ namespace kfusion
                 }
             }
             dst(y, x) = __float2int_rn (sum1 / sum2);
+            */
         }
     }
 }
