@@ -386,7 +386,7 @@ void kfusion::KinFu::dynamicfusion(cuda::Depth& depth, cuda::Cloud current_frame
 //    getWarp().energy_data(warped, warped_normals, warped, warped_normals); //crashes, leave out for now
 
     // TODO: getwarp.warp() always run into nan so this is not functioning
-    // getWarp().warp(warped, warped_normals);
+    getWarp().warp(warped, warped_normals);
 //    //ScopeTime time("fusion");
     tsdf().surface_fusion(getWarp(), warped, canonical_visible, depth, camera_pose, params_.intr);
 
