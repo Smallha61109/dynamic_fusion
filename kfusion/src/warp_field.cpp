@@ -7,6 +7,7 @@
 #include "precomp.hpp"
 #include <opencv2/core/affine.hpp>
 #include <kfusion/optimisation.hpp>
+#include <cmath>
 
 using namespace kfusion;
 std::vector<utils::DualQuaternion<float>> neighbours; //THIS SHOULD BE SOMEWHERE ELSE BUT TOO SLOW TO REINITIALISE
@@ -174,11 +175,70 @@ void WarpField::energy_data(const std::vector<Vec3f> &canonical_vertices,
  * \brief
  * \param edges
  */
-void WarpField::energy_reg(const std::vector<std::pair<kfusion::utils::DualQuaternion<float>,
-        kfusion::utils::DualQuaternion<float>>> &edges)
-{
 
+void WarpField::energy_reg(const std::vector<cv::Vec3f>& surface_points, cv::Affine3f inverse_pose, const std::vector<cv::Matx33f>& warp_rot, const std::vector<cv::Vec3f>& warp_trans){
+  float weights[KNN_NEIGHBOURS];
+  std::vector<double*> epsilon_transforms;
+  float delta = 0.0001;
+  float sum = 0;
+  WarpProblem warpProblem(this);
+
+  for(int i=0; i<surface_points.size(); ++i){
+    getWeightsAndUpdateKNN(surface_points[i], weights);
+    //FIXME: This might be KNN of all point, should be KNN of TSDF=0 set.
+    epsilon_transforms = warpProblem.mutable_epsilon(ret_index_);
+    float sum_j = 0;
+    cv::Affine3f warp(warp_rot[i], warp_trans[i]);
+    cv::Affine3f Tic;
+    Tic = inverse_pose.concatenate(warp);
+    for(int j=0; j<KNN_NEIGHBOURS; ++j){
+      auto jpoint = nodes_->at(ret_index_[j]).vertex;
+      cv::Vec3f j_rot(epsilon_transforms[j][0],
+                      epsilon_transforms[j][1],
+                      epsilon_transforms[j][2]);
+      cv::Vec3f j_trans(epsilon_transforms[j][3],
+                        epsilon_transforms[j][4],
+                        epsilon_transforms[j][5]);
+      cv::Affine3f j_warp(j_rot, j_trans);
+      cv::Affine3f Tjc;
+      Tjc = inverse_pose.concatenate(j_warp);
+      auto difference = Tic * jpoint - Tjc * jpoint;
+      float dist = sqrt(pow(difference[0], 2) +
+                        pow(difference[1], 2) +
+                        pow(difference[2], 2));
+      float huber = dist <= delta ? dist * dist / 2 :
+                                    delta * dist - delta * delta / 2;
+      sum_j += weights[j] * huber;
+      // FIXME: Weight should be the max of i weight and j weight.
+      // TODO: Don't need to compute i for j everytime.
+    }
+    sum += sum_j;
+  }
+  std::cout << "*********************" << std::endl;
+  std::cout << sum << std::endl;
+  std::cout << "*********************" << std::endl;
 }
+
+void WarpField::energy_reg(const std::vector<cv::Vec3f>& surface_points, const cv::Matx33f live_camera_rot, const cv::Vec3f live_camera_trans, const std::vector<cv::Matx33f>& warp_rot, const std::vector<cv::Vec3f>& warp_trans)
+{
+// TODO: maybe Tic and Tjc can be computed by inverse camera transform * warp?
+  std::cout << "poop" << std::endl;
+  cv::Matx33f z(1, 2, 3, 4, 5, 6, 7, 8, 9);
+  cv::Vec3f x = warp_trans[0] - live_camera_trans;
+  std::cout<< "ppp " << x << std::endl;
+  cv::Affine3f T(z, x);
+  // m << live_camera_rot;
+  // std::cout << "1111" << std::endl;
+  // std::cout << live_camera_rot.at<float>(0,0) << std::endl;
+  // std::cout << "1111" << std::endl;
+  // TODO: get KNN j points and for all points in j compute algorithm 8
+}
+
+// void WarpField::energy_reg(const std::vector<std::pair<kfusion::utils::DualQuaternion<float>,
+//         kfusion::utils::DualQuaternion<float>>> &edges)
+// {
+
+// }
 
 
 /**

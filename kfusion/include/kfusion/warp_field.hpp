@@ -58,8 +58,9 @@ namespace kfusion
                           const std::vector<Vec3f> &canonical_normals,
                           const std::vector<Vec3f> &live_vertices,
                           const std::vector<Vec3f> &live_normals);
-        void energy_reg(const std::vector<std::pair<kfusion::utils::DualQuaternion<float>,
-                kfusion::utils::DualQuaternion<float>>> &edges);
+        // void energy_reg(const std::vector<std::pair<kfusion::utils::DualQuaternion<float>, kfusion::utils::DualQuaternion<float>>> &edges);
+        void energy_reg(const std::vector<cv::Vec3f>& surface_points, const cv::Matx33f live_camera_rot, const cv::Vec3f live_camera_trans, const std::vector<cv::Matx33f>& warp_rot, const std::vector<cv::Vec3f>& warp_trans);
+        void energy_reg(const std::vector<cv::Vec3f>& surface_points, cv::Affine3f inverse_pose, const std::vector<cv::Matx33f>& warp_rot, const std::vector<cv::Vec3f>& warp_trans);
 
 
         void warp(std::vector<Vec3f>& points, std::vector<Vec3f>& normals) const;
