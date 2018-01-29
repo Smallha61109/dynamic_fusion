@@ -280,6 +280,7 @@ bool kfusion::KinFu::operator()(const kfusion::cuda::Depth& depth, const kfusion
 			std::cout << "ok" << std::endl;
     }
 
+    //affine = Affine3f::Identity();
     poses_.push_back(poses_.back() * affine); // curr -> global
 //    auto d = depth;
     auto d = curr_.depth_pyr[0];
@@ -352,38 +353,77 @@ void kfusion::KinFu::dynamicfusion(cuda::Depth& depth, cuda::Cloud current_frame
     cloud.create(depth.rows(), depth.cols());
     normals.create(depth.rows(), depth.cols());
     auto camera_pose = poses_.back();
-    tsdf().raycast(camera_pose, params_.intr, cloud, normals);
-
+    tsdf().raycast(camera_pose, params_.intr, cloud, normals); // [Minhui 2018/1/27](Need to be checked)"cloud" might be the surface of visible canonical model seen from camera_pose 
 
     cv::Mat cloud_host(depth.rows(), depth.cols(), CV_32FC4);
     cloud.download(cloud_host.ptr<Point>(), cloud_host.step);
-    std::vector<Vec3f> warped(cloud_host.rows * cloud_host.cols);
-    auto inverse_pose = camera_pose.inv(cv::DECOMP_SVD);
+    std::vector<Vec3f> warped(cloud_host.rows * cloud_host.cols); // [Minhui 2018/1/27]"cloud_host.rows * cloud_host.cols" always equals to 307200(640*480)
+    auto inverse_pose = camera_pose.inv(cv::DECOMP_SVD); // [Minhui 2018/1/27]"camera_pose" is obtained from icp in KinectFusion
+    // [Minhui 2018/1/28]Why inverse: transform the corrdinate to the first frame (probably the global coordinate)
+    
     //TODO: check here
     for (int i = 0; i < cloud_host.rows; i++)
+    {
         for (int j = 0; j < cloud_host.cols; j++) {
             Point point = cloud_host.at<Point>(i, j);
-            warped[i * cloud_host.cols + j][0] = point.x;
+            warped[i * cloud_host.cols + j][0] = point.x; // [Minhui 2018/1/27]First, store the canonical to "warped"
             warped[i * cloud_host.cols + j][1] = point.y;
             warped[i * cloud_host.cols + j][2] = point.z;
-            warped[i * cloud_host.cols + j] = inverse_pose * warped[i * cloud_host.cols + j];
+            warped[i * cloud_host.cols + j] = inverse_pose * warped[i * cloud_host.cols + j]; //[Minhui 2018/1/27]Second, eliminate the influence of rigid camera motion
         }
-
+    }    
     cv::Mat normal_host(cloud_host.rows, cloud_host.cols, CV_32FC4);
     normals.download(normal_host.ptr<Normal>(), normal_host.step);
 
     std::vector<Vec3f> warped_normals(normal_host.rows * normal_host.cols);
     for (int i = 0; i < normal_host.rows; i++)
+    {
         for (int j = 0; j < normal_host.cols; j++) {
             auto point = normal_host.at<Normal>(i, j);
             warped_normals[i * normal_host.cols + j][0] = point.x;
             warped_normals[i * normal_host.cols + j][1] = point.y;
             warped_normals[i * normal_host.cols + j][2] = point.z;
+            // [Minhui 2018/1/27]TODO: Warped_normals may also need to be multiplied with inverse_pose 
+            warped_normals[i * normal_host.cols + j] = inverse_pose * warped[i * cloud_host.cols + j]; // [Minhui 2018/1/28]add
         }
-
+    }
     std::vector<Vec3f> canonical_visible(warped);
     // FIXME: fix energy regularization and all energy function
-//    getWarp().energy_data(warped, warped_normals, warped, warped_normals); //crashes, leave out for now
+    
+    /* [Minhui 2018/1/27] Transform the data structure of "current_frame" and "current_normals" from cuda::Cloud/Normals to std::vector<Vec3f> */
+    cv::Mat live_cloud_host(current_frame.rows(), current_frame.cols(), CV_32FC4); // TODO: check "CV_32FC4"
+    current_frame.download(live_cloud_host.ptr<Point>(), live_cloud_host.step);
+    std::vector<Vec3f> live(live_cloud_host.rows * live_cloud_host.cols);
+    for (int i = 0; i < live_cloud_host.rows; i++) {
+        for (int j = 0; j < live_cloud_host.cols; j++) {
+            Point point = live_cloud_host.at<Point>(i, j);
+            live[i * live_cloud_host.cols + j][0] = point.x;
+            live[i * live_cloud_host.cols + j][1] = point.y;
+            live[i * live_cloud_host.cols + j][2] = point.z;
+        }
+    }
+
+    cv::Mat live_normal_host(current_normals.rows(), current_normals.cols(), CV_32FC4);
+    current_normals.download(live_normal_host.ptr<Normal>(), live_normal_host.step);
+    std::vector<Vec3f> live_normals(live_normal_host.rows * live_normal_host.cols);
+    for (int i = 0; i < live_normal_host.rows; i++) {
+        for (int j = 0; j < live_normal_host.cols; j++) {
+            auto point = live_normal_host.at<Normal>(i, j);
+            live_normals[i * live_normal_host.cols + j][0] = point.x;
+            live_normals[i * live_normal_host.cols + j][1] = point.y;
+            live_normals[i * live_normal_host.cols + j][2] = point.z;
+        }
+    }
+    /* (End) */
+
+    // [Original] getWarp().energy_data(warped, warped_normals, warped, warped_normals); //crashes, leave out for now
+    // cv::imshow("cloud_host", cloud_host);
+    // cv::imshow("live_cloud_host", live_cloud_host);
+    // cv::imshow("normal_host", normal_host);
+    // cv::imshow("live_normal_host", live_normal_host);
+    // cv::waitKey(10);
+    
+    getWarp().energy_data(warped, warped_normals, live, live_normals, params_.intr);
 
     // TODO: getwarp.warp() always run into nan so this is not functioning
     getWarp().warp(warped, warped_normals);
