@@ -1,23 +1,36 @@
 #ifndef KFUSION_OPTIMISATION_H
 #define KFUSION_OPTIMISATION_H
+#include <dual_quaternion.hpp>
 #include "ceres/ceres.h"
 #include "ceres/rotation.h"
 #include <kfusion/warp_field.hpp>
 
+// [Minhui 2018/1/28] In optimisation.hpp, it defines "struct DynamicFusionDataEnergy", "struct DynamicFusionRegEnergy" and "class WarpProblem"
+
 struct DynamicFusionDataEnergy
 {
+    // DynamicFusionDataEnergy(const std::vector<cv::Vec3f>& live_vertex,
+    //                         const std::vector<cv::Vec3f>& live_normal,
+    //                         const cv::Vec3f& canonical_vertex,
+    //                         const cv::Vec3f& canonical_normal,
+    //                         kfusion::WarpField *warpField,
+    //                         const float weights[KNN_NEIGHBOURS],
+    //                         const unsigned long knn_indices[KNN_NEIGHBOURS],
+    //                         const kfusion::Intr& intr)
     DynamicFusionDataEnergy(const cv::Vec3f& live_vertex,
                             const cv::Vec3f& live_normal,
                             const cv::Vec3f& canonical_vertex,
                             const cv::Vec3f& canonical_normal,
                             kfusion::WarpField *warpField,
                             const float weights[KNN_NEIGHBOURS],
-                            const unsigned long knn_indices[KNN_NEIGHBOURS])
+                            const unsigned long knn_indices[KNN_NEIGHBOURS],
+                            const kfusion::Intr& intr)
             : live_vertex_(live_vertex),
               live_normal_(live_normal),
               canonical_vertex_(canonical_vertex),
               canonical_normal_(canonical_normal),
-              warpField_(warpField)
+              warpField_(warpField),
+              intr_(intr)
     {
         weights_ = new float[KNN_NEIGHBOURS];
         knn_indices_ = new unsigned long[KNN_NEIGHBOURS];
@@ -32,43 +45,110 @@ struct DynamicFusionDataEnergy
         delete[] weights_;
         delete[] knn_indices_;
     }
+
+    // [Minhui 2018/1/28] original
+    // template <typename T>
+    // bool operator()(T const * const * epsilon_, T* residuals) const
+    // {
+    //     //printf("(In DynamicFusionDataEnergy)\n");
+    //     auto nodes = warpField_->getNodes();
+
+    //     T total_translation[3] = {T(0), T(0), T(0)};
+    //     float total_translation_float[3] = {0, 0, 0};
+    //     T total_quaternion[4] = {T(0), T(0), T(0), T(0)};
+
+    //     for(int i = 0; i < KNN_NEIGHBOURS; i++)
+    //     {
+    //         auto quat = nodes->at(knn_indices_[i]).transform;
+    //         cv::Vec3f vert;
+    //         quat.getTranslation(vert);
+
+    //         T eps_t[3] = {epsilon_[i][3], epsilon_[i][4], epsilon_[i][5]};
+
+    //         float temp[3];
+    //         quat.getTranslation(temp[0], temp[1], temp[2]);
+
+    //         total_translation[0] += (T(temp[0]) +  eps_t[0]) * T(weights_[i]);
+    //         total_translation[1] += (T(temp[1]) +  eps_t[1]) * T(weights_[i]);
+    //         total_translation[2] += (T(temp[2]) +  eps_t[2]) * T(weights_[i]);
+
+    //     }
+
+    //     T norm = ceres::sqrt(total_translation[0] * total_translation[0] +
+    //                          total_translation[1] * total_translation[1] +
+    //                          total_translation[2] * total_translation[2]);
+
+    //     residuals[0] = T(live_vertex_[0] - canonical_vertex_[0]) + total_translation[0];
+    //     residuals[1] = T(live_vertex_[1] - canonical_vertex_[1]) + total_translation[1];
+    //     residuals[2] = T(live_vertex_[2] - canonical_vertex_[2]) + total_translation[2];
+
+    //     return true;
+    // }
+
+    // [Minhui 2018/1/28] 
     template <typename T>
     bool operator()(T const * const * epsilon_, T* residuals) const
     {
-        auto nodes = warpField_->getNodes();
+        //auto nodes = warpField_->getNodes();
+        cv::Vec3f canonical_point = canonical_vertex_;
+        cv::Vec3f canonical_point_n = canonical_normal_;
 
-        T total_translation[3] = {T(0), T(0), T(0)};
-        float total_translation_float[3] = {0, 0, 0};
-        T total_quaternion[4] = {T(0), T(0), T(0), T(0)};
-
-        for(int i = 0; i < KNN_NEIGHBOURS; i++)
-        {
-            auto quat = nodes->at(knn_indices_[i]).transform;
-            cv::Vec3f vert;
-            quat.getTranslation(vert);
-
-            T eps_t[3] = {epsilon_[i][3], epsilon_[i][4], epsilon_[i][5]};
-
-            float temp[3];
-            quat.getTranslation(temp[0], temp[1], temp[2]);
-
-            total_translation[0] += (T(temp[0]) +  eps_t[0]) * T(weights_[i]);
-            total_translation[1] += (T(temp[1]) +  eps_t[1]) * T(weights_[i]);
-            total_translation[2] += (T(temp[2]) +  eps_t[2]) * T(weights_[i]);
-
+        // [Step 1] The point in canonical model warps using warp functiton (3D-coordinate)
+        if(std::isnan(canonical_point[0]) && std::isnan(canonical_point_n[0])) {
+            return false; //[Minhui 2018/1/28] not sure if it is ok to return false
         }
 
-        T norm = ceres::sqrt(total_translation[0] * total_translation[0] +
-                             total_translation[1] * total_translation[1] +
-                             total_translation[2] * total_translation[2]);
+        kfusion::utils::DualQuaternion<float> dqb = warpField_->DQB_r(canonical_point, weights_, knn_indices_);
+        dqb.transform(canonical_point);
+        dqb.transform(canonical_point_n);
 
-        residuals[0] = T(live_vertex_[0] - canonical_vertex_[0]) + total_translation[0];
-        residuals[1] = T(live_vertex_[1] - canonical_vertex_[1]) + total_translation[1];
-        residuals[2] = T(live_vertex_[2] - canonical_vertex_[2]) + total_translation[2];
+        // [Step 2] project the 3D conanical point to live-frame image domain (2D-coordinate)
+        float2 project_point = project(canonical_point[0], canonical_point[1], canonical_point[2]);
+        //is point.z needs to be in homogeneous coordinate? (point.z==1)
+        float project_u = project_point.x;
+        float project_v = project_point.y;
+        float depth = 0.0f;
+
+        std::vector<cv::Vec3f> live_vertices;
+        live_vertices =  warpField_->live_vertices_;
+        depth = live_vertices[project_u * 640 + project_v][2];
+
+        // [Step 3] re-project the correspondence to 3D space
+        float3 reproject_point = reproject(project_u, project_v, depth);
+        float reproject_x = reproject_point.x;
+        float reproject_y = reproject_point.y;
+        float reproject_z = reproject_point.z;
+        
+        // [Step 4] Calculate the residual
+        T residual_temp = T( canonical_point_n[0] * (canonical_point[0] - reproject_x) +
+                             canonical_point_n[1] * (canonical_point[0] - reproject_y) +
+                             canonical_point_n[1] * (canonical_point[0] - reproject_z));
+        
+        residuals[0] = tukeyPenalty(residual_temp);
 
         return true;
+    }  
+
+    float2 project(const float &x, const float &y, const float &z) const
+    {
+        float2 project_point;
+
+        project_point.x = intr_.fx * (x / z) + intr_.cy;
+        project_point.x = intr_.fy * (y / z) + intr_.cy;
+
+        return project_point;
     }
 
+    float3 reproject(const float &u, const float &v, const float &depth) const
+    {
+        float3 reproject_point;
+        
+        reproject_point.x = depth * (u - intr_.cx) * intr_.fx;
+        reproject_point.y = depth * (v - intr_.cy) * intr_.fy;
+        reproject_point.z = depth;
+
+        return reproject_point;
+    }
 /**
  * Tukey loss function as described in http://web.as.uky.edu/statistics/users/pbreheny/764-F11/notes/12-1.pdf
  * \param x
@@ -92,13 +172,22 @@ struct DynamicFusionDataEnergy
     // Factory to hide the construction of the CostFunction object from
     // the client code.
 //      TODO: this will only have one residual at the end, remember to change
+    // static ceres::CostFunction* Create(const std::vector<cv::Vec3f>* live_vertex,
+    //                                    const std::vector<cv::Vec3f>* live_normal,
+    //                                    const cv::Vec3f& canonical_vertex,
+    //                                    const cv::Vec3f& canonical_normal,
+    //                                    kfusion::WarpField* warpField,
+    //                                    const float weights[KNN_NEIGHBOURS],
+    //                                    const unsigned long ret_index[KNN_NEIGHBOURS],
+    //                                    const kfusion::Intr& intr)
     static ceres::CostFunction* Create(const cv::Vec3f& live_vertex,
                                        const cv::Vec3f& live_normal,
                                        const cv::Vec3f& canonical_vertex,
                                        const cv::Vec3f& canonical_normal,
                                        kfusion::WarpField* warpField,
                                        const float weights[KNN_NEIGHBOURS],
-                                       const unsigned long ret_index[KNN_NEIGHBOURS])
+                                       const unsigned long ret_index[KNN_NEIGHBOURS],
+                                       const kfusion::Intr& intr)
     {
         auto cost_function = new ceres::DynamicAutoDiffCostFunction<DynamicFusionDataEnergy, 4>(
                 new DynamicFusionDataEnergy(live_vertex,
@@ -107,16 +196,21 @@ struct DynamicFusionDataEnergy
                                             canonical_normal,
                                             warpField,
                                             weights,
-                                            ret_index));
+                                            ret_index,
+                                            intr));
         for(int i=0; i < KNN_NEIGHBOURS; i++)
             cost_function->AddParameterBlock(6);
-        cost_function->SetNumResiduals(3);
+        //cost_function->SetNumResiduals(3); // [Minhui 2018/1/28]original
+        cost_function->SetNumResiduals(1); // [Minhui 2018/1/28]modified
         return cost_function;
     }
     const cv::Vec3f live_vertex_;
     const cv::Vec3f live_normal_;
+    //const std::vector<cv::Vec3f> live_vertex_;
+    //const std::vector<cv::Vec3f> live_normal_;
     const cv::Vec3f canonical_vertex_;
     const cv::Vec3f canonical_normal_;
+    const kfusion::Intr& intr_;
 
     float *weights_;
     unsigned long *knn_indices_;

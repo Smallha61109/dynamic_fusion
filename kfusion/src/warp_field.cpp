@@ -112,6 +112,67 @@ void WarpField::energy(const cuda::Cloud &frame,
     assert(normals.rows()==frame.rows());
 }
 
+// [Minhui 2018/1/28]original
+// /**
+//  *
+//  * @param canonical_vertices
+//  * @param canonical_normals
+//  * @param live_vertices
+//  * @param live_normals
+//  * @return
+//  */
+// void WarpField::energy_data(const std::vector<Vec3f> &canonical_vertices,
+//                             const std::vector<Vec3f> &canonical_normals,
+//                             const std::vector<Vec3f> &live_vertices,
+//                             const std::vector<Vec3f> &live_normals
+// )
+// {
+
+// //    assert((canonical_normals.size() == canonical_vertices.size()) == (live_normals.size() == live_vertices.size()));
+//     ceres::Problem problem;
+//     float weights[KNN_NEIGHBOURS];
+//     unsigned long indices[KNN_NEIGHBOURS];
+
+//     WarpProblem warpProblem(this);
+//     for(int i = 0; i < live_vertices.size(); i++)
+//     {
+//         if(std::isnan(canonical_vertices[i][0]))
+//             continue;
+//         getWeightsAndUpdateKNN(canonical_vertices[i], weights); // [Minhui 2018/1/28]would update the weights and ret_index_(might be index of KNN in nodes_)
+
+// //        FIXME: could just pass ret_index
+//         for(int j = 0; j < KNN_NEIGHBOURS; j++)
+//             indices[j] = ret_index_[j];
+
+//         ceres::CostFunction* cost_function = DynamicFusionDataEnergy::Create(live_vertices[i],
+//                                                                              live_normals[i],
+//                                                                              canonical_vertices[i],
+//                                                                              canonical_normals[i],
+//                                                                              this,
+//                                                                              weights,
+//                                                                              indices);
+//         problem.AddResidualBlock(cost_function,  NULL /* squared loss */, warpProblem.mutable_epsilon(indices));
+
+//     }
+//     ceres::Solver::Options options;
+//     options.linear_solver_type = ceres::SPARSE_SCHUR;
+//     options.minimizer_progress_to_stdout = true;
+//     options.num_linear_solver_threads = 8;
+//     options.num_threads = 8;
+//     ceres::Solver::Summary summary;
+//     ceres::Solve(options, &problem, &summary);
+//     std::cout << summary.FullReport() << std::endl;
+
+// //    auto params = warpProblem.params();
+// //    for(int i = 0; i < nodes_->size()*6; i++)
+// //    {
+// //        std::cout<<params[i]<<" ";
+// //        if((i+1) % 6 == 0)
+// //            std::cout<<std::endl;
+// //    }
+//     update_nodes(warpProblem.params());
+// }
+
 /**
  *
  * @param canonical_vertices
@@ -120,10 +181,13 @@ void WarpField::energy(const cuda::Cloud &frame,
  * @param live_normals
  * @return
  */
+
+// [Minhui 2018/1/28]modified
 void WarpField::energy_data(const std::vector<Vec3f> &canonical_vertices,
                             const std::vector<Vec3f> &canonical_normals,
                             const std::vector<Vec3f> &live_vertices,
-                            const std::vector<Vec3f> &live_normals
+                            const std::vector<Vec3f> &live_normals,
+                            const Intr& intr
 )
 {
 
@@ -133,11 +197,13 @@ void WarpField::energy_data(const std::vector<Vec3f> &canonical_vertices,
     unsigned long indices[KNN_NEIGHBOURS];
 
     WarpProblem warpProblem(this);
+    live_vertices_ = live_vertices;
+
     for(int i = 0; i < live_vertices.size(); i++)
     {
         if(std::isnan(canonical_vertices[i][0]))
             continue;
-        getWeightsAndUpdateKNN(canonical_vertices[i], weights);
+        getWeightsAndUpdateKNN(canonical_vertices[i], weights); // [Minhui 2018/1/28]would update the weights and ret_index_(might be index of KNN in nodes_)
 
 //        FIXME: could just pass ret_index
         for(int j = 0; j < KNN_NEIGHBOURS; j++)
@@ -149,19 +215,31 @@ void WarpField::energy_data(const std::vector<Vec3f> &canonical_vertices,
                                                                              canonical_normals[i],
                                                                              this,
                                                                              weights,
-                                                                             indices);
+                                                                             indices,
+                                                                             intr);
+        // ceres::CostFunction* cost_function = DynamicFusionDataEnergy::Create(live_vertices[i],
+        //                                                                      live_normals[i],
+        //                                                                      canonical_vertices[i],
+        //                                                                      canonical_normals[i],
+        //                                                                      this,
+        //                                                                      weights,
+        //                                                                      indices,
+        //                                                                      intr);
         problem.AddResidualBlock(cost_function,  NULL /* squared loss */, warpProblem.mutable_epsilon(indices));
 
     }
+    printf("Debug 1\n");
     ceres::Solver::Options options;
     options.linear_solver_type = ceres::SPARSE_SCHUR;
     options.minimizer_progress_to_stdout = true;
-    options.num_linear_solver_threads = 8;
-    options.num_threads = 8;
+    options.num_linear_solver_threads = 12;
+    options.num_threads = 12;
     ceres::Solver::Summary summary;
+    printf("Debug 2\n");
     ceres::Solve(options, &problem, &summary);
+    printf("Debug 3\n");
     std::cout << summary.FullReport() << std::endl;
-
+    printf("Debug 4\n");
 //    auto params = warpProblem.params();
 //    for(int i = 0; i < nodes_->size()*6; i++)
 //    {
@@ -171,6 +249,8 @@ void WarpField::energy_data(const std::vector<Vec3f> &canonical_vertices,
 //    }
     update_nodes(warpProblem.params());
 }
+
+
 /**
  * \brief
  * \param edges
@@ -255,10 +335,10 @@ void WarpField::warp(std::vector<Vec3f>& points, std::vector<Vec3f>& normals) co
         KNN(point);
         utils::DualQuaternion<float> dqb = DQB(point);
         dqb.transform(point);
-        point = warp_to_live_ * point;
+        //point = warp_to_live_ * point; //[Minhui 2018/1/28]temporarily comment this line
 
         dqb.transform(normals[i]);
-        normals[i] = warp_to_live_ * normals[i];
+        //normals[i] = warp_to_live_ * normals[i];  //[Minhui 2018/1/28]temporarily comment this line
         i++;
     }
 }
@@ -280,7 +360,28 @@ utils::DualQuaternion<float> WarpField::DQB(const Vec3f& vertex) const
         translation_sum += weights[i] * nodes_->at(ret_index_[i]).transform.getTranslation();
         rotation_sum += weights[i] * nodes_->at(ret_index_[i]).transform.getRotation();
     }
-    rotation_sum = utils::Quaternion<float>();
+    //rotation_sum = utils::Quaternion<float>(); //[Minhui 2018/1/28]comment this line to avoid initializing "rotation_sum" to (1, 0, 0, 0)
+    return utils::DualQuaternion<float>(translation_sum, rotation_sum);
+}
+
+/**
+ * \brief
+ * \param vertex
+ * \param weight
+ * \return
+ */
+utils::DualQuaternion<float> WarpField::DQB_r(const Vec3f& vertex, const float weights[KNN_NEIGHBOURS], const unsigned long knn_indices_[KNN_NEIGHBOURS]) const
+{
+    //float weights[KNN_NEIGHBOURS];
+    //getWeightsAndUpdateKNN(vertex, weights);
+    utils::Quaternion<float> translation_sum(0,0,0,0);
+    utils::Quaternion<float> rotation_sum(0,0,0,0);
+    for (size_t i = 0; i < KNN_NEIGHBOURS; i++)
+    {
+        translation_sum += weights[i] * nodes_->at(knn_indices_[i]).transform.getTranslation();
+        rotation_sum += weights[i] * nodes_->at(knn_indices_[i]).transform.getRotation();
+    }
+    //rotation_sum = utils::Quaternion<float>(); //[Minhui 2018/1/28]comment this line to avoid initializing "rotation_sum" to (1, 0, 0, 0)
     return utils::DualQuaternion<float>(translation_sum, rotation_sum);
 }
 
@@ -308,7 +409,7 @@ utils::DualQuaternion<float> WarpField::DQB(const Vec3f& vertex, const std::vect
         translation_sum += weights[i] * (nodes_->at(ret_index_[i]).transform.getTranslation() + eps.getTranslation());
         rotation_sum += weights[i] * (nodes_->at(ret_index_[i]).transform.getRotation() + eps.getRotation());
     }
-    rotation_sum = utils::Quaternion<float>();
+    rotation_sum = utils::Quaternion<float>(); //[Minhui 2018/1/28]might comment this line to avoid initializing "rotation_sum" to (1, 0, 0, 0)
     return utils::DualQuaternion<float>(translation_sum, rotation_sum);
 }
 
@@ -424,7 +525,9 @@ std::vector<float>* WarpField::getDistSquared() const
 {
     return &out_dist_sqr_;
 }
+
 std::vector<size_t>* WarpField::getRetIndex() const
 {
     return &ret_index_;
 }
+
