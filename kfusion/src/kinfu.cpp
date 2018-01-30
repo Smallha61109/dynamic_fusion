@@ -354,14 +354,14 @@ void kfusion::KinFu::dynamicfusion(cuda::Depth& depth, cuda::Cloud current_frame
     cloud.create(depth.rows(), depth.cols());
     normals.create(depth.rows(), depth.cols());
     auto camera_pose = poses_.back();
-    tsdf().raycast(camera_pose, params_.intr, cloud, normals); // [Minhui 2018/1/27](Need to be checked)"cloud" might be the surface of visible canonical model seen from camera_pose 
+    tsdf().raycast(camera_pose, params_.intr, cloud, normals); // [Minhui 2018/1/27](Need to be checked)"cloud" might be the surface of visible canonical model seen from camera_pose
 
     cv::Mat cloud_host(depth.rows(), depth.cols(), CV_32FC4);
     cloud.download(cloud_host.ptr<Point>(), cloud_host.step);
     std::vector<Vec3f> warped(cloud_host.rows * cloud_host.cols); // [Minhui 2018/1/27]"cloud_host.rows * cloud_host.cols" always equals to 307200(640*480)
     auto inverse_pose = camera_pose.inv(cv::DECOMP_SVD); // [Minhui 2018/1/27]"camera_pose" is obtained from icp in KinectFusion
     // [Minhui 2018/1/28]Why inverse: transform the corrdinate to the first frame (probably the global coordinate)
-    
+    //
     //TODO: check here
     for (int i = 0; i < cloud_host.rows; i++)
     {
@@ -425,10 +425,8 @@ void kfusion::KinFu::dynamicfusion(cuda::Depth& depth, cuda::Cloud current_frame
             live_normals[i * live_normal_host.cols + j][2] = point.z;
         }
     }
-    /* (End) */
-
     // [Original] getWarp().energy_data(warped, warped_normals, warped, warped_normals); //crashes, leave out for now
-    getWarp().energy_data(warped, warped_normals, live, live_normals, params_.intr);
+    // getWarp().energy_data(warped, warped_normals, live, live_normals, params_.intr);
 
     getWarp().warp(warped, warped_normals);
     // ScopeTime time("fusion");

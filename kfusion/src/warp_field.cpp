@@ -279,6 +279,7 @@ void WarpField::energy_reg(const std::vector<cv::Vec3f>& surface_points, cv::Aff
       cv::Vec3f j_trans(epsilon_transforms[j][3],
                         epsilon_transforms[j][4],
                         epsilon_transforms[j][5]);
+      // std::cout << j_rot << std::endl;
       cv::Affine3f j_warp(j_rot, j_trans);
       cv::Affine3f Tjc;
       Tjc = inverse_pose.concatenate(j_warp);

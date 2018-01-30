@@ -85,7 +85,7 @@ struct DynamicFusionDataEnergy
     //     return true;
     // }
 
-    // [Minhui 2018/1/28] 
+    // [Minhui 2018/1/28]
     template <typename T>
     bool operator()(T const * const * epsilon_, T* residuals) const
     {
@@ -118,16 +118,16 @@ struct DynamicFusionDataEnergy
         float reproject_x = reproject_point.x;
         float reproject_y = reproject_point.y;
         float reproject_z = reproject_point.z;
-        
+
         // [Step 4] Calculate the residual
         T residual_temp = T( canonical_point_n[0] * (canonical_point[0] - reproject_x) +
                              canonical_point_n[1] * (canonical_point[0] - reproject_y) +
                              canonical_point_n[1] * (canonical_point[0] - reproject_z));
-        
+
         residuals[0] = tukeyPenalty(residual_temp);
 
         return true;
-    }  
+    }
 
     float2 project(const float &x, const float &y, const float &z) const
     {
@@ -142,7 +142,7 @@ struct DynamicFusionDataEnergy
     float3 reproject(const float &u, const float &v, const float &depth) const
     {
         float3 reproject_point;
-        
+
         reproject_point.x = depth * (u - intr_.cx) * intr_.fx;
         reproject_point.y = depth * (v - intr_.cy) * intr_.fy;
         reproject_point.z = depth;
