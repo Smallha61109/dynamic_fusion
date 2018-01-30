@@ -23,6 +23,7 @@ namespace kfusion
 
         typedef int3   Vec3i;
         typedef float3 Vec3f;
+        typedef double3 Vec3d;
         struct Mat3f { float3 data[3]; };
         struct Aff3f { Mat3f R; Vec3f t; };
 

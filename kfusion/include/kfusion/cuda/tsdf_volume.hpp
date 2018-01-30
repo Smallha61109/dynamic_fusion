@@ -49,12 +49,12 @@ namespace kfusion
             Vec3i getGridOrigin() const;
             void setGridOrigin(const Vec3i& origin);
 
-            std::vector<float> psdf(const std::vector<Vec3f>& warped, Dists& depth_img, const Intr& intr);
+            std::vector<float> psdf(const std::vector<Vec3d>& warped, Dists& depth_img, const Intr& intr);
 //            float psdf(const std::vector<Vec3f>& warped, Dists& dists, const Intr& intr);
             float weighting(const std::vector<float>& dist_sqr, int k) const;
             void surface_fusion(const WarpField& warp_field,
-                                std::vector<Vec3f> warped,
-                                std::vector<Vec3f> canonical,
+                                std::vector<Vec3d> warped,
+                                std::vector<Vec3d> canonical,
                                 cuda::Depth &depth,
                                 const Affine3f& camera_pose,
                                 const Intr& intr);

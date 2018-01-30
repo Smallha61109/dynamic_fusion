@@ -282,7 +282,6 @@ bool kfusion::KinFu::operator()(const kfusion::cuda::Depth& depth, const kfusion
 
     //affine = Affine3f::Identity();
     poses_.push_back(poses_.back() * affine); // curr -> global
-
 //    auto d = depth;
     auto d = curr_.depth_pyr[0];
     auto pts = curr_.points_pyr[0];
@@ -388,9 +387,9 @@ void kfusion::KinFu::dynamicfusion(cuda::Depth& depth, cuda::Cloud current_frame
             warped_normals[i * normal_host.cols + j] = inverse_pose * warped[i * cloud_host.cols + j]; // [Minhui 2018/1/28]add
         }
     }
-    std::vector<Vec3f> canonical_visible(warped);
+    // std::vector<Vec3f> canonical_visible(warped);
     // FIXME: fix energy regularization and all energy function
-//  FIXME: make up values for debuging.
+    //  FIXME: make up values for debuging.
     cv::Matx33f warp_rot_mat(1, 2, 3, 4, 5, 6, 7, 8, 9);
     cv::Vec3f warp_trans_vec(1, 2, 3);
     cv::Vec3f one_point(8, 8, 8);
@@ -414,6 +413,7 @@ void kfusion::KinFu::dynamicfusion(cuda::Depth& depth, cuda::Cloud current_frame
             live[i * live_cloud_host.cols + j][2] = point.z;
         }
     }
+
     cv::Mat live_normal_host(current_normals.rows(), current_normals.cols(), CV_32FC4);
     current_normals.download(live_normal_host.ptr<Normal>(), live_normal_host.step);
     std::vector<Vec3f> live_normals(live_normal_host.rows * live_normal_host.cols);
@@ -428,11 +428,24 @@ void kfusion::KinFu::dynamicfusion(cuda::Depth& depth, cuda::Cloud current_frame
     /* (End) */
 
     // [Original] getWarp().energy_data(warped, warped_normals, warped, warped_normals); //crashes, leave out for now
-    getWarp().energy_data(warped, warped_normals, live, live_normals, params_.intr);
+    // cv::imshow("cloud_host", cloud_host);
+    // cv::imshow("live_cloud_host", live_cloud_host);
+    // cv::imshow("normal_host", normal_host);
+    // cv::imshow("live_normal_host", live_normal_host);
+    // cv::waitKey(10);
 
-    getWarp().warp(warped, warped_normals);
-    // ScopeTime time("fusion");
-    tsdf().surface_fusion(getWarp(), warped, canonical_visible, depth, camera_pose, params_.intr);
+    std::vector<Vec3d> warped_d(warped.begin(), warped.end());
+    std::vector<Vec3d> warped_normals_d(warped_normals.begin(), warped_normals.end());
+    std::vector<Vec3d> live_d(live.begin(), live.end());
+    std::vector<Vec3d> live_normals_d(live_normals.begin(), live_normals.end());
+    std::vector<Vec3d> canonical_visible(warped_d);
+
+    getWarp().energy_data(warped_d, warped_normals_d, live_d, live_normals_d, params_.intr);
+
+    // TODO: getwarp.warp() always run into nan so this is not functioning
+    getWarp().warp(warped_d, warped_normals_d);
+//    //ScopeTime time("fusion");
+    tsdf().surface_fusion(getWarp(), warped_d, canonical_visible, depth, camera_pose, params_.intr);
 
     cv::Mat depth_cloud(depth.rows(),depth.cols(), CV_16U);
     depth.download(depth_cloud.ptr<void>(), depth_cloud.step);

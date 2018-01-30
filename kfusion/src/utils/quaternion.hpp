@@ -121,11 +121,11 @@ namespace kfusion{
              * \brief rotate a vector3 (x,y,z) by the angle theta about the axis
              * (U_x, U_y, U_z) stored in the quaternion.
              */
-            void rotate(Vec3f& v) const
+            void rotate(Vec3d& v) const
             {
                 auto rot= *this;
                 rot.normalize();
-                Vec3f q_vec(rot.x_, rot.y_, rot.z_);
+                Vec3d q_vec(rot.x_, rot.y_, rot.z_);
                 v += (q_vec*2.f).cross( q_vec.cross(v) + v*rot.w_ );
             }
 
@@ -232,11 +232,11 @@ namespace kfusion{
              *                                  (std::ostream& os, const Quaternion<U>& q);
              * \brief a templated friend function for printing quaternions.
              */
-            template <typename U> friend std::ostream& operator << (std::ostream& os, const Quaternion<U>& q)
-            {
-                os << "(" << q.w_ << ", " << q.x_ << ", " <<  q.y_ << ", " << q.z_ << ")";
-                return os;
-            }
+            // template <typename U> friend std::ostream& operator << (std::ostream& os, const Quaternion<U>& q)
+            // {
+            //     os << "(" << q.w_ << ", " << q.x_ << ", " <<  q.y_ << ", " << q.z_ << ")";
+            //     return os;
+            // }
 
             T w_;
             T x_;

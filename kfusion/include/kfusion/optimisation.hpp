@@ -17,10 +17,10 @@ struct DynamicFusionDataEnergy
     //                         const float weights[KNN_NEIGHBOURS],
     //                         const unsigned long knn_indices[KNN_NEIGHBOURS],
     //                         const kfusion::Intr& intr)
-    DynamicFusionDataEnergy(const cv::Vec3f& live_vertex,
-                            const cv::Vec3f& live_normal,
-                            const cv::Vec3f& canonical_vertex,
-                            const cv::Vec3f& canonical_normal,
+    DynamicFusionDataEnergy(const cv::Vec3d& live_vertex,
+                            const cv::Vec3d& live_normal,
+                            const cv::Vec3d& canonical_vertex,
+                            const cv::Vec3d& canonical_normal,
                             kfusion::WarpField *warpField,
                             const float weights[KNN_NEIGHBOURS],
                             const unsigned long knn_indices[KNN_NEIGHBOURS],
@@ -89,16 +89,47 @@ struct DynamicFusionDataEnergy
     template <typename T>
     bool operator()(T const * const * epsilon_, T* residuals) const
     {
-        //auto nodes = warpField_->getNodes();
-        cv::Vec3f canonical_point = canonical_vertex_;
-        cv::Vec3f canonical_point_n = canonical_normal_;
+        auto nodes = warpField_->getNodes();
+        cv::Vec3d canonical_point = canonical_vertex_;
+        cv::Vec3d canonical_point_n = canonical_normal_;
 
         // [Step 1] The point in canonical model warps using warp functiton (3D-coordinate)
         if(std::isnan(canonical_point[0]) && std::isnan(canonical_point_n[0])) {
             return false; //[Minhui 2018/1/28] not sure if it is ok to return false
         }
 
-        kfusion::utils::DualQuaternion<float> dqb = warpField_->DQB_r(canonical_point, weights_, knn_indices_);
+        // [Minhui 2018/1/29]update transformations in KNNs
+        // double KNNtranformations[KNN_NEIGHBOURS][6];
+        // for(int i = 0; i < KNN_NEIGHBOURS; i++) {
+        //     for(int j = 0; j < 6; j++) {
+                // ceres::Jet<4> result;
+                // (*functor_)(epsilon_, &result);
+                // KNNtransromations[i][j] = result[i][j];
+               //KNNtranformations[i][j] = epsilon_[i][j];
+            //    if (epsilon_[i][j] >= 0) {
+            //         KNNtranformations[KNN_NEIGHBOURS][j] = ceres::abs(epsilon_[i][j]);
+            //    }
+            //    else {
+            //         KNNtranformations[KNN_NEIGHBOURS][j] = -ceres::abs(epsilon_[i][j]);
+            //    }
+               //KNNtranformations[KNN_NEIGHBOURS][j] = ceres::abs(epsilon_[i][j]);
+               //KNNtranformations[KNN_NEIGHBOURS][j] = epsilon_[i][j];
+               //const ceres::Jet<double, 4>* test = epsilon_[i];
+            //}
+            //nodes->at(knn_indices_[i]).transform.encodeRotation(epsilon_[i][0], epsilon_[i][1], epsilon_[i][2]);
+            //nodes->at(knn_indices_[i]).transform.encodeTranslation(epsilon_[i][3], epsilon_[i][4], epsilon_[i][5]);
+            //nodes->at(knn_indices_[i]).transform.encodeRotation(KNNtranformations[i][0], KNNtranformations[i][1], KNNtranformations[i][2]);
+            //nodes->at(knn_indices_[i]).transform.encodeTranslation(KNNtranformations[i][3], KNNtranformations[i][4], KNNtranformations[i][5]);
+        //}
+        //warpField_->updateTransformations(KNNtranformations);
+
+        // printf("[Debug e]%f %f %f %f %f %f\n", nodes->at(knn_indices_[1]).transform.rotation_.x_
+        // , nodes->at(knn_indices_[1]).transform.rotation_.y_
+        // , nodes->at(knn_indices_[1]).transform.rotation_.z_
+        // , nodes->at(knn_indices_[1]).transform.translation_.x_
+        // , nodes->at(knn_indices_[1]).transform.translation_.y_
+        // , nodes->at(knn_indices_[1]).transform.translation_.z_ );
+        kfusion::utils::DualQuaternion<double> dqb = warpField_->DQB_r(canonical_point, weights_, knn_indices_);
         dqb.transform(canonical_point);
         dqb.transform(canonical_point_n);
 
@@ -109,7 +140,7 @@ struct DynamicFusionDataEnergy
         float project_v = project_point.y;
         float depth = 0.0f;
 
-        std::vector<cv::Vec3f> live_vertices;
+        std::vector<cv::Vec3d> live_vertices;
         live_vertices =  warpField_->live_vertices_;
         depth = live_vertices[project_u * 640 + project_v][2];
 
@@ -121,11 +152,11 @@ struct DynamicFusionDataEnergy
         
         // [Step 4] Calculate the residual
         T residual_temp = T( canonical_point_n[0] * (canonical_point[0] - reproject_x) +
-                             canonical_point_n[1] * (canonical_point[0] - reproject_y) +
-                             canonical_point_n[1] * (canonical_point[0] - reproject_z));
+                             canonical_point_n[1] * (canonical_point[1] - reproject_y) +
+                             canonical_point_n[2] * (canonical_point[2] - reproject_z));
         
         residuals[0] = tukeyPenalty(residual_temp);
-
+        //residuals[0] = residual_temp;
         return true;
     }  
 
@@ -148,6 +179,12 @@ struct DynamicFusionDataEnergy
         reproject_point.z = depth;
 
         return reproject_point;
+    }
+
+    template <typename T>
+    double T_to_double(T a) const
+    {
+        return a;
     }
 /**
  * Tukey loss function as described in http://web.as.uky.edu/statistics/users/pbreheny/764-F11/notes/12-1.pdf
@@ -256,40 +293,78 @@ class WarpProblem {
 public:
     explicit WarpProblem(kfusion::WarpField *warp) : warpField_(warp)
     {
-        parameters_ = new double[warpField_->getNodes()->size() * 6];
+        parameters_.resize(warpField_->getNodes()->size() * 6);
+        for(int i = 0; i < warpField_->getNodes()->size(); i++) {
+            parameters_[i * 6 + 0] = &(warpField_->getNodes()->at(i).transform.rotation_.x_);
+            parameters_[i * 6 + 1] = &(warpField_->getNodes()->at(i).transform.rotation_.y_);
+            parameters_[i * 6 + 2] = &(warpField_->getNodes()->at(i).transform.rotation_.z_);
+            parameters_[i * 6 + 3] = &(warpField_->getNodes()->at(i).transform.translation_.x_);
+            parameters_[i * 6 + 4] = &(warpField_->getNodes()->at(i).transform.translation_.y_);
+            parameters_[i * 6 + 5] = &(warpField_->getNodes()->at(i).transform.translation_.z_);
+        }
+
+        // mutable_epsilon_[i] = &(nodes_->at(index_list[i]).transform.translation_.x_);
+
+        // parameters_ = new double[warpField_->getNodes()->size() * 6];
+        // // [Minhui 2018/1/29] Initialization per frame (update the parameters_ with wrap functions in last frame)
+        // // TODO: Retrieved type of "rotation" needs to be check (x, y, z) or (angle, x, y, z)?
+        // for(int i = 0; i < warpField_->getNodes()->size(); i++) {
+        //     //double translation[3];
+        //     cv::Vec3f translation;
+
+        //     warpField_->getNodes()->at(i).transform.getTranslation(translation);
+        //     auto rotation = warpField_->getNodes()->at(i).transform.getRotation();
+        //     parameters_[i * 6 + 0] = rotation.x_;
+        //     parameters_[i * 6 + 1] = rotation.y_;
+        //     parameters_[i * 6 + 2] = rotation.z_;
+        //     parameters_[i * 6 + 3] = translation[0];
+        //     parameters_[i * 6 + 4] = translation[1];
+        //     parameters_[i * 6 + 5] = translation[2];        
+        // }
+        // parameters_ = new double[warpField_->getNodes()->size() * 6];
+
     };
 
     ~WarpProblem() {
-        delete[] parameters_;
+        //delete[] parameters_;
+        std::vector<double*> *v = &parameters_;
+        delete v;
     }
     std::vector<double*> mutable_epsilon(const unsigned long *index_list) const
     {
         std::vector<double*> mutable_epsilon_(KNN_NEIGHBOURS);
-        for(int i = 0; i < KNN_NEIGHBOURS; i++)
-            mutable_epsilon_[i] = &(parameters_[index_list[i] * 6]); // Blocks of 6
+        for(int i = 0; i < KNN_NEIGHBOURS; i++) {
+            //mutable_epsilon_[i] = &(nodes_->at(index_list[i]).transform.translation_.x_);
+            mutable_epsilon_[i] = parameters_[index_list[i] * 6];
+        }
         return mutable_epsilon_;
     }
 
-    std::vector<double*> mutable_epsilon(const std::vector<size_t>& index_list) const
-    {
-        std::vector<double*> mutable_epsilon_(KNN_NEIGHBOURS);
-        for(int i = 0; i < KNN_NEIGHBOURS; i++)
-            mutable_epsilon_[i] = &(parameters_[index_list[i] * 6]); // Blocks of 6
-        return mutable_epsilon_;
-    }
-    double *mutable_params()
-    {
-        return parameters_;
-    }
+    // std::vector<double*> mutable_epsilon(const std::vector<size_t>& index_list) const
+    // {
+    //     std::vector<double*> mutable_epsilon_(KNN_NEIGHBOURS);
+    //     for(int i = 0; i < KNN_NEIGHBOURS; i++)
+    //         mutable_epsilon_[i] = &(parameters_[index_list[i] * 6]); // Blocks of 6
+    //     return mutable_epsilon_;
+    // }
 
-    const double *params() const
+    // double *mutable_params()
+    // {
+    //     return parameters_;
+    // }
+
+    //YuYang
+    // const double *params() const
+    const std::vector<double*> *params() const
     {
-        return parameters_;
+        // return parameters_;
+        return &parameters_;
     }
 
 
 private:
-    double *parameters_;
+    //double *parameters_;
+    std::vector<double*> parameters_;
     kfusion::WarpField *warpField_;
 };
 
