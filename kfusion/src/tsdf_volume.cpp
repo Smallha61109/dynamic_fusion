@@ -234,8 +234,8 @@ void kfusion::cuda::TsdfVolume::fetchNormals(const DeviceArray<Point>& cloud, De
  * \param intr
  */
 void kfusion::cuda::TsdfVolume::surface_fusion(const WarpField& warp_field,
-                                               std::vector<Vec3f> warped,
-                                               std::vector<Vec3f> canonical,
+                                               std::vector<Vec3d> warped,
+                                               std::vector<Vec3d> canonical,
                                                cuda::Depth& depth,
                                                const Affine3f& camera_pose,
                                                const Intr& intr)
@@ -271,7 +271,7 @@ void kfusion::cuda::TsdfVolume::surface_fusion(const WarpField& warp_field,
  * \param voxel_center
  *
  */
-std::vector<float> kfusion::cuda::TsdfVolume::psdf(const std::vector<Vec3f>& warped,
+std::vector<float> kfusion::cuda::TsdfVolume::psdf(const std::vector<Vec3d>& warped,
                                                    Dists& dists,
                                                    const Intr& intr)
 {

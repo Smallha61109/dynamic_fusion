@@ -35,8 +35,11 @@ namespace kfusion
     struct deformation_node
     {
         Vec3f vertex;
-        kfusion::utils::DualQuaternion<float> transform;
-        float weight = 0;
+        //YuYang
+        // kfusion::utils::DualQuaternion<float> transform;
+        // float weight = 0;
+        kfusion::utils::DualQuaternion<double> transform;
+        double weight = 0;
     };
     class WarpField
     {
@@ -50,26 +53,27 @@ namespace kfusion
                     const cuda::Normals &normals,
                     const Affine3f &pose,
                     const cuda::TsdfVolume &tsdfVolume,
-                    const std::vector<std::pair<kfusion::utils::DualQuaternion<float>,
-                            kfusion::utils::DualQuaternion<float>>> &edges
+                    const std::vector<std::pair<kfusion::utils::DualQuaternion<double>,
+                            kfusion::utils::DualQuaternion<double>>> &edges
         );
 
-        void energy_data(const std::vector<Vec3f> &canonical_vertices,
-                          const std::vector<Vec3f> &canonical_normals,
-                          const std::vector<Vec3f> &live_vertices,
-                          const std::vector<Vec3f> &live_normals,
+        void energy_data(const std::vector<Vec3d> &canonical_vertices,
+                          const std::vector<Vec3d> &canonical_normals,
+                          const std::vector<Vec3d> &live_vertices,
+                          const std::vector<Vec3d> &live_normals,
                           const Intr& intr);
-        void energy_reg(const std::vector<std::pair<kfusion::utils::DualQuaternion<float>,
-                kfusion::utils::DualQuaternion<float>>> &edges);
+        // void energy_reg(const std::vector<std::pair<kfusion::utils::DualQuaternion<float>, kfusion::utils::DualQuaternion<float>>> &edges);
+        void energy_reg(const std::vector<cv::Vec3f>& surface_points, const cv::Matx33f live_camera_rot, const cv::Vec3f live_camera_trans, const std::vector<cv::Matx33f>& warp_rot, const std::vector<cv::Vec3f>& warp_trans);
+        void energy_reg(const std::vector<cv::Vec3f>& surface_points, cv::Affine3f inverse_pose, const std::vector<cv::Matx33f>& warp_rot, const std::vector<cv::Vec3f>& warp_trans);
 
 
-        void warp(std::vector<Vec3f>& points, std::vector<Vec3f>& normals) const;
+        void warp(std::vector<Vec3d>& points, std::vector<Vec3d>& normals) const;
         void warp(cuda::Cloud& points) const;
 
-        utils::DualQuaternion<float> DQB(const Vec3f& vertex) const;
-        utils::DualQuaternion<float> DQB(const Vec3f& vertex, const std::vector<double*> epsilon) const;
-        utils::DualQuaternion<float> DQB_r(const Vec3f& vertex, const float weights[KNN_NEIGHBOURS], const unsigned long knn_indices_[KNN_NEIGHBOURS]) const; // [Minhui 2018/1/28]
-        void update_nodes(const double *epsilon);
+        utils::DualQuaternion<double> DQB(const Vec3f& vertex) const;
+        utils::DualQuaternion<double> DQB(const Vec3f& vertex, const std::vector<double*> epsilon) const;
+        utils::DualQuaternion<double> DQB_r(const Vec3d& vertex, const float weights[KNN_NEIGHBOURS], const unsigned long knn_indices_[KNN_NEIGHBOURS]) const; // [Minhui 2018/1/28]
+        //void update_nodes(const double *epsilon); // [Minhui 2018/1/30]
 
         void getWeightsAndUpdateKNN(const Vec3f& vertex, float weights[KNN_NEIGHBOURS]) const;
 
@@ -84,8 +88,9 @@ namespace kfusion
         void setWarpToLive(const Affine3f &pose);
         std::vector<float>* getDistSquared() const;
         std::vector<size_t>* getRetIndex() const;
+        //void updateTransformations(double[KNN_NEIGHBOURS][6]); // [Minhui 2018/1/29]
 
-        std::vector<cv::Vec3f> live_vertices_;
+        std::vector<cv::Vec3d> live_vertices_;
 
     private:
         std::vector<deformation_node>* nodes_;

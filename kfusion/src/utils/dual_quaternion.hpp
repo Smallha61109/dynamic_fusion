@@ -108,9 +108,14 @@ namespace kfusion {
              * \brief a reference-based method for acquiring the latest
              *        translation data.
              */
-            void getTranslation(Vec3f& vec3f) const
+            // void getTranslation(Vec3f& vec3f) const
+            // {
+            //     getTranslation(vec3f[0], vec3f[1], vec3f[2]);
+            // }
+
+            void getTranslation(Vec3d& vec3d) const
             {
-                getTranslation(vec3f[0], vec3f[1], vec3f[2]);
+                getTranslation(vec3d[0], vec3d[1], vec3d[2]);
             }
 
             Quaternion<T> getTranslation() const
@@ -197,9 +202,17 @@ namespace kfusion {
                 return DualQuaternion(Quaternion<T>(0, 0, 0, 0),Quaternion<T>(0, 1, 0, 0));
             }
 
-            void transform(Vec3f& point) // TODO: this should be a lot more generic
+            // void transform(Vec3f& point) // TODO: this should be a lot more generic
+            // {
+            //     Vec3f translation;
+            //     getTranslation(translation);
+            //     rotation_.rotate(point);
+            //     point += translation;
+            // }
+
+            void transform(Vec3d& point) // TODO: this should be a lot more generic
             {
-                Vec3f translation;
+                Vec3d translation;
                 getTranslation(translation);
                 rotation_.rotate(point);
                 point += translation;
@@ -230,9 +243,12 @@ namespace kfusion {
                 return std::make_pair(result.rotation_.w_, result.translation_.w_);
             }
 
-        private:
-            Quaternion<T> rotation_;
+            Quaternion<T> rotation_; // [Minhui 2018/1/29]
             Quaternion<T> translation_;
+
+        private:
+            // Quaternion<T> rotation_; // [Minhui 2018/1/29] temporarily changed to public (not safe)
+            // Quaternion<T> translation_;
 
             T position_[3] = {};    /// default initialize vector to zeros.
 

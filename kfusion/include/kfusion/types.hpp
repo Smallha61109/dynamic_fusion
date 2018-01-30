@@ -15,6 +15,7 @@ namespace kfusion
     typedef cv::Vec3f Vec3f;
     typedef cv::Vec4f Vec4f;
     typedef cv::Vec3i Vec3i;
+    typedef cv::Vec3d Vec3d;
     typedef cv::Affine3f Affine3f;
 
     struct KF_EXPORTS Intr
