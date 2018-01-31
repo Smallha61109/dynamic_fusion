@@ -73,7 +73,7 @@ namespace kfusion
         utils::DualQuaternion<double> DQB(const Vec3f& vertex) const;
         utils::DualQuaternion<double> DQB(const Vec3f& vertex, const std::vector<double*> epsilon) const;
         utils::DualQuaternion<double> DQB_r(const Vec3d& vertex, const float weights[KNN_NEIGHBOURS], const unsigned long knn_indices_[KNN_NEIGHBOURS]) const; // [Minhui 2018/1/28]
-        //void update_nodes(const double *epsilon); // [Minhui 2018/1/30]
+        void update_nodes(std::vector<double*> &epsilons); // [Minhui 2018/1/30]
 
         void getWeightsAndUpdateKNN(const Vec3f& vertex, float weights[KNN_NEIGHBOURS]) const;
 

@@ -106,56 +106,96 @@ struct DynamicFusionDataEnergy
     //template <typename T>
     bool operator()(const double* const* epsilon_, double* residuals) const
     {
-        static int i = 0;
         auto nodes = warpField_->getNodes();
         cv::Vec3d canonical_point = canonical_vertex_;
         cv::Vec3d canonical_point_n = canonical_normal_;
-        printf("Debug 3\n");
-        printf("[canonical_point] %f %f %f\n", canonical_vertex_[0], canonical_vertex_[1], canonical_vertex_[2]);
-        printf("[canonical_normal] %f %f %f\n", canonical_normal_[0], canonical_normal_[1], canonical_normal_[2]);
+        //printf("Debug 3\n");
+        // printf("[canonical_point] %f %f %f\n", canonical_vertex_[0], canonical_vertex_[1], canonical_vertex_[2]);
+        // printf("[canonical_normal] %f %f %f\n", canonical_normal_[0], canonical_normal_[1], canonical_normal_[2]);
         // [Step 1] The point in canonical model warps using warp functiton (3D-coordinate)
-        if(std::isnan(canonical_point[0]) && std::isnan(canonical_point_n[0])) {
-            printf("Debug 4\n");
-            return false;
-        }
+        // if(std::isnan(canonical_point[0]) && std::isnan(canonical_point_n[0])) {
+        //     printf("Debug 4\n");
+        //     return false;
+        // }
+
         // [Step 2] Calculte the dqb warp function of the canonical point
         // Reference to warpField_->DQB_r
-        kfusion::utils::Quaternion<double> translation_sum(0.0f, 0.0f, 0.0f, 0.0f);
-        kfusion::utils::Quaternion<double> rotation_sum(0.0f, 0.0f, 0.0f, 0.0f);
-        printf("Debug 5\n");
+        kfusion::utils::Quaternion<double> translation_sum(0.0, 0.0, 0.0, 0.0);
+        kfusion::utils::Quaternion<double> rotation_sum(0.0, 0.0, 0.0, 0.0);
+        //printf("Debug 5\n");
+
+        float weights_sum = 0;
         for(int i = 0; i < KNN_NEIGHBOURS; i++) {
+            weights_sum += weights_[i];
+        }
+        for(int i = 0; i < KNN_NEIGHBOURS; i++) {
+            weights_[i] = weights_[i] / weights_sum;
+        }
+
+        for(int i = 0; i < KNN_NEIGHBOURS; i++) {
+            // double a = 9;
+            // printf("[1] %f %f %f %f\n", epsilon_[i][0], epsilon_[i][1], epsilon_[i][2], epsilon_[i][3]);
+            // printf("[2] %f %f %f %f\n", nodes->at(knn_indices_[i]).transform.rotation_.w_, nodes->at(knn_indices_[i]).transform.rotation_.x_, nodes->at(knn_indices_[i]).transform.rotation_.y_, nodes->at(knn_indices_[i]).transform.rotation_.z_);
+            // printf("[1] %f %f %f %f\n", epsilon_[i][4], epsilon_[i][5], epsilon_[i][6], epsilon_[i][7]);
+            // printf("[2] %f %f %f %f\n\n", nodes->at(knn_indices_[i]).transform.translation_.w_, nodes->at(knn_indices_[i]).transform.translation_.x_, nodes->at(knn_indices_[i]).transform.translation_.y_, nodes->at(knn_indices_[i]).transform.translation_.z_);
             kfusion::utils::DualQuaternion<double> temp;
+            // temp.rotation_.x_ = epsilon_[i][0];
+            // temp.rotation_.y_ = epsilon_[i][1];
+            // temp.rotation_.z_ = epsilon_[i][2];
+            // temp.translation_.x_ = epsilon_[i][3];
+            // temp.translation_.y_ = epsilon_[i][4];
+            // temp.translation_.z_ = epsilon_[i][5];
             kfusion::utils::Quaternion<double> rotation(0.0f, 0.0f, 0.0f, 0.0f);
             kfusion::utils::Quaternion<double> translation(0.0f, 0.0f, 0.0f, 0.0f);
-            temp.encodeRotation(epsilon_[i][0], epsilon_[i][1], epsilon_[i][2]);
-            temp.encodeTranslation(epsilon_[i][3], epsilon_[i][4], epsilon_[i][5]);
+            temp.rotation_.w_ = epsilon_[i][0];
+            temp.rotation_.x_ = epsilon_[i][1];
+            temp.rotation_.y_ = epsilon_[i][2];
+            temp.rotation_.z_ = epsilon_[i][3];
+            temp.translation_.w_ = epsilon_[i][4];
+            temp.translation_.x_ = epsilon_[i][5];
+            temp.translation_.y_ = epsilon_[i][6];
+            temp.translation_.z_ = epsilon_[i][7];
+
             rotation = temp.getRotation();
             translation = temp.getTranslation();
 
             rotation_sum += weights_[i] * rotation;
             translation_sum += weights_[i] * translation;
-            
-            // rotation_sum += weights[i] * nodes_->at(knn_indices_[i]).transform.getRotation();
-            // translation_sum += weights[i] * nodes_->at(knn_indices_[i]).transform.getTranslation();
+
+            // rotation = temp.getRotation();
+            // translation = temp.getTranslation();
+
+            // rotation_sum += weights_[i] * rotation;
+            // translation_sum += weights_[i] * translation;
+
         }
-        printf("Debug 6\n");
-        printf("%f %f %f %f\n", rotation_sum.w_, rotation_sum.x_, rotation_sum.y_, rotation_sum.z_);
-        printf("%f %f %f %f\n", translation_sum.w_, translation_sum.x_, translation_sum.y_, translation_sum.z_);
         kfusion::utils::DualQuaternion<double> dqb;
-        dqb = kfusion::utils::DualQuaternion<double>(translation_sum, rotation_sum);
-        rotation_sum = dqb.getRotation();
-        translation_sum = dqb.getTranslation();
-        printf("%f %f %f %f\n", rotation_sum.w_, rotation_sum.x_, rotation_sum.y_, rotation_sum.z_);
-        printf("%f %f %f %f\n", translation_sum.w_, translation_sum.x_, translation_sum.y_, translation_sum.z_);
+        dqb.encodeRotation(rotation_sum.w_, rotation_sum.x_, rotation_sum.y_, rotation_sum.z_);
+        dqb.encodeTranslation(translation_sum.x_, translation_sum.y_, translation_sum.z_);
+        // printf("Debug 6\n");
+        // printf("[1] %f %f %f %f\n", rotation_sum.w_, rotation_sum.x_, rotation_sum.y_, rotation_sum.z_);
+        // printf("[2] %f %f %f %f\n", translation_sum.w_, translation_sum.x_, translation_sum.y_, translation_sum.z_);
+        // kfusion::utils::DualQuaternion<double> dqb;
+        // dqb = kfusion::utils::DualQuaternion<double>(translation_sum, rotation_sum);
+        // rotation_sum = dqb.getRotation();
+        // translation_sum = dqb.getTranslation();
+        // printf("[3] %f %f %f %f\n", rotation_sum.w_, rotation_sum.x_, rotation_sum.y_, rotation_sum.z_);
+        // printf("[4] %f %f %f %f\n\n", translation_sum.w_, translation_sum.x_, translation_sum.y_, translation_sum.z_);
+        // cv::Mat hi(400, 400, CV_8UC3, cv::Scalar(255,0,0));
+        // cv::imshow("hihi", hi);
+        // cv::waitKey(0);
 
+        //kfusion::utils::DualQuaternion<double> dqb = warpField_->DQB_r(canonical_point, weights_, knn_indices_);
 
-        printf("Debug 7\n");
+        //printf("Debug 7\n");
         dqb.transform(canonical_point);
         dqb.transform(canonical_point_n);
 
+
+
         // [Step 2] project the 3D conanical point to live-frame image domain (2D-coordinate)
         cv::Vec2d project_point = project(canonical_point[0], canonical_point[1], canonical_point[2]); //Is point.z needs to be in homogeneous coordinate? (point.z==1)
-         printf("Debug 8\n");
+        //printf("Debug 8\n");
         double project_u = project_point[0];
         double project_v = project_point[1];
         double depth = 0.0f;
@@ -165,14 +205,24 @@ struct DynamicFusionDataEnergy
         // depth = live_vertices[project_u * 640 + project_v][2];
 
         depth = warpField_->live_vertices_[project_u * 640 + project_v][2];
-        printf("Debug 9\n");
+        if(std::isnan(depth)) {
+            //printf("Debug 3 depth is NAN\n");
+            //printf("Debug 4 u = %f    v = %f\n", project_u, project_v);
+            residuals[0] = 10000000;
+            residuals[1] = 10000000;
+            residuals[2] = 10000000;
+            return true;
+            //cv::waitKey(0);
+            //return false;
+        }
+        //printf("Debug 9\n");
 
         // [Step 3] re-project the correspondence to 3D space
         cv::Vec3d reproject_point = reproject(project_u, project_v, depth);
         double reproject_x = reproject_point[0];
         double reproject_y = reproject_point[1];
         double reproject_z = reproject_point[2];
-        printf("Debug 10\n");
+        //printf("Debug 10\n");
         // // [Step 4] Calculate the residual
         // residuals[0] = canonical_point_n[0] * (canonical_point[0] - reproject_x);
         // residuals[1] = canonical_point_n[1] * (canonical_point[1] - reproject_y);
@@ -183,12 +233,9 @@ struct DynamicFusionDataEnergy
         residuals[1] = canonical_point[1] - reproject_y;
         residuals[2] = canonical_point[2] - reproject_z;
 
-        printf("*****[%d] %f %f %f\n", index_, residuals[0], residuals[1], residuals[2]);
-        printf("Debug 11\n");
-        i++;
-        cv::Mat hi(400, 400, CV_8UC3, cv::Scalar(255,0,0));
-        cv::imshow("hihi", hi);
-        cv::waitKey(0);
+        //printf("*****[%d] %f %f %f\n", index_, residuals[0], residuals[1], residuals[2]);
+        //cv::Mat hi(400, 400, CV_8UC3, cv::Scalar(255,0,0));
+        //cv::imshow("hihi", hi);
         if(std::isnan(residuals[0]) || std::isnan(residuals[1]) || std::isnan(residuals[2])) {
             cv::waitKey(0);
         }
@@ -202,21 +249,6 @@ struct DynamicFusionDataEnergy
         //                      canonical_point_n[1] * (canonical_point[1] - reproject_y) +
         //                      canonical_point_n[2] * (canonical_point[2] - reproject_z);
 
-        //residuals[0] = tukeyPenalty(residual_temp);
-
-        // // [Step 4] Calculate the residual
-        // residuals[0] = T(canonical_point[0] - reproject_x);
-        // residuals[1] = T(canonical_point[1] - reproject_y);
-        // residuals[2] = T(canonical_point[2] - reproject_z);
-        
-        // residuals[0] = tukeyPenalty(T(canonical_point[0] - reproject_x));
-        // residuals[1] = tukeyPenalty(T(canonical_point[1] - reproject_y));
-        // residuals[2] = tukeyPenalty(T(canonical_point[2] - reproject_z));
-
-        // residuals[0] = tukeyPenalty(residual_temp);
-
-        // double residual_temp = 1;
-        // residuals[0] = residual_temp;
 
         return true;
     }
@@ -404,7 +436,7 @@ struct DynamicFusionDataEnergy
                                             intr,
                                             index));
         for(int i=0; i < KNN_NEIGHBOURS; i++)
-            cost_function->AddParameterBlock(6);
+            cost_function->AddParameterBlock(8);
         cost_function->SetNumResiduals(3);
         return cost_function;
     }
@@ -461,49 +493,37 @@ class WarpProblem {
 public:
     explicit WarpProblem(kfusion::WarpField *warp) : warpField_(warp)
     {
-        parameters_.resize(warpField_->getNodes()->size() * 6);
+        parameters_.resize(warpField_->getNodes()->size() * 8);
         for(int i = 0; i < warpField_->getNodes()->size(); i++) {
-            parameters_[i * 6 + 0] = &(warpField_->getNodes()->at(i).transform.rotation_.x_);
-            parameters_[i * 6 + 1] = &(warpField_->getNodes()->at(i).transform.rotation_.y_);
-            parameters_[i * 6 + 2] = &(warpField_->getNodes()->at(i).transform.rotation_.z_);
-            parameters_[i * 6 + 3] = &(warpField_->getNodes()->at(i).transform.translation_.x_);
-            parameters_[i * 6 + 4] = &(warpField_->getNodes()->at(i).transform.translation_.y_);
-            parameters_[i * 6 + 5] = &(warpField_->getNodes()->at(i).transform.translation_.z_);
+            parameters_[i * 8 + 0] = &(warpField_->getNodes()->at(i).transform.rotation_.w_);
+            parameters_[i * 8 + 1] = &(warpField_->getNodes()->at(i).transform.rotation_.x_);
+            parameters_[i * 8 + 2] = &(warpField_->getNodes()->at(i).transform.rotation_.y_);
+            parameters_[i * 8 + 3] = &(warpField_->getNodes()->at(i).transform.rotation_.z_);
+            parameters_[i * 8 + 4] = &(warpField_->getNodes()->at(i).transform.translation_.w_);
+            parameters_[i * 8 + 5] = &(warpField_->getNodes()->at(i).transform.translation_.x_);
+            parameters_[i * 8 + 6] = &(warpField_->getNodes()->at(i).transform.translation_.y_);
+            parameters_[i * 8 + 7] = &(warpField_->getNodes()->at(i).transform.translation_.z_);
+            
+            // parameters_[i * 6 + 3] = &(warpField_->getNodes()->at(i).transform.translation_.x_) + 2;
+            // parameters_[i * 6 + 4] = &(warpField_->getNodes()->at(i).transform.translation_.y_) + 2;
+            // parameters_[i * 6 + 5] = &(warpField_->getNodes()->at(i).transform.translation_.z_) + 2;
         }
 
-        // mutable_epsilon_[i] = &(nodes_->at(index_list[i]).transform.translation_.x_);
-
-        // parameters_ = new double[warpField_->getNodes()->size() * 6];
-        // // [Minhui 2018/1/29] Initialization per frame (update the parameters_ with wrap functions in last frame)
-        // // TODO: Retrieved type of "rotation" needs to be check (x, y, z) or (angle, x, y, z)?
-        // for(int i = 0; i < warpField_->getNodes()->size(); i++) {
-        //     //double translation[3];
-        //     cv::Vec3f translation;
-
-        //     warpField_->getNodes()->at(i).transform.getTranslation(translation);
-        //     auto rotation = warpField_->getNodes()->at(i).transform.getRotation();
-        //     parameters_[i * 6 + 0] = rotation.x_;
-        //     parameters_[i * 6 + 1] = rotation.y_;
-        //     parameters_[i * 6 + 2] = rotation.z_;
-        //     parameters_[i * 6 + 3] = translation[0];
-        //     parameters_[i * 6 + 4] = translation[1];
-        //     parameters_[i * 6 + 5] = translation[2];
-        // }
         // parameters_ = new double[warpField_->getNodes()->size() * 6];
 
     };
 
     ~WarpProblem() {
         //delete[] parameters_;
-        std::vector<double*> *v = &parameters_;
-        delete v;
+        //std::vector<double*> *v = &parameters_;
+        //delete v;
     }
     std::vector<double*> mutable_epsilon(const unsigned long *index_list) const
     {
         std::vector<double*> mutable_epsilon_(KNN_NEIGHBOURS);
         for(int i = 0; i < KNN_NEIGHBOURS; i++) {
             //mutable_epsilon_[i] = &(nodes_->at(index_list[i]).transform.translation_.x_);
-            mutable_epsilon_[i] = parameters_[index_list[i] * 6];
+            mutable_epsilon_[i] = parameters_[index_list[i] * 8];
         }
         return mutable_epsilon_;
     }
@@ -523,10 +543,10 @@ public:
 
     //YuYang
     // const double *params() const
-    const std::vector<double*> *params() const
+    const std::vector<double*> &params() const
     {
         // return parameters_;
-        return &parameters_;
+        return parameters_;
     }
 
 

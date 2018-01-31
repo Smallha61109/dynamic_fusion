@@ -206,7 +206,53 @@ void WarpField::energy_data(const std::vector<Vec3d> &canonical_vertices,
     WarpProblem warpProblem(this);
     live_vertices_ = live_vertices; // [Minhui] using the whole point cloud as parameter of cost funciton would cause RAM rising rapidly
 
-    // /* test */
+    // // /* test */
+    // double rotation[3] = {0.0, 1, 0.0};
+    // double translation[3] = {0.4, 0.5, 0.6};
+    // kfusion::utils::DualQuaternion<double> temp;
+    // temp.encodeRotation(rotation[0], rotation[1], rotation[2]);
+    // temp.encodeTranslation(translation[0], translation[1], translation[2]);
+    // kfusion::utils::Quaternion<double> rotation_q;
+    // kfusion::utils::Quaternion<double> translation_q;
+    // rotation_q = temp.getRotation();
+    // translation_q = temp.getTranslation();
+    // printf("[Debug 1] %f %f, %f, %f\n", temp.rotation_.w_, temp.rotation_.x_, temp.rotation_.y_, temp.rotation_.z_);
+    // printf("[Debug 2] %f %f, %f, %f\n", rotation_q.w_, rotation_q.x_, rotation_q.y_, rotation_q.z_);
+    // printf("[Debug 3] %f %f, %f, %f\n", temp.translation_.w_, temp.translation_.x_, temp.translation_.y_, temp.translation_.z_);
+    // printf("[Debug 4] %f %f, %f, %f\n\n", translation_q.w_, translation_q.x_, translation_q.y_, translation_q.z_);
+    // rotation_q = temp.getRotation();
+
+    // temp.encodeRotation(0.0, 0.4, 0.8);
+    // temp.encodeTranslation(0.7, 0.8, 0.9);
+    // rotation_q = temp.getRotation();
+    // translation_q = temp.getTranslation();
+    // printf("[Debug 1] %f %f, %f, %f\n", temp.rotation_.w_, temp.rotation_.x_, temp.rotation_.y_, temp.rotation_.z_);
+    // printf("[Debug 2] %f %f, %f, %f\n", rotation_q.w_, rotation_q.x_, rotation_q.y_, rotation_q.z_);
+    // printf("[Debug 3] %f %f, %f, %f\n", temp.translation_.w_, temp.translation_.x_, temp.translation_.y_, temp.translation_.z_);
+    // printf("[Debug 4] %f %f, %f, %f\n\n", translation_q.w_, translation_q.x_, translation_q.y_, translation_q.z_);
+    
+    // temp.encodeRotation(0.3, 0.2, 0.3);
+    // temp.encodeTranslation(0.7, 0.8, 0.9);
+    // rotation_q = temp.getRotation();
+    // translation_q = temp.getTranslation();
+    // printf("[Debug 1] %f %f, %f, %f\n", temp.rotation_.w_, temp.rotation_.x_, temp.rotation_.y_, temp.rotation_.z_);
+    // printf("[Debug 2] %f %f, %f, %f\n", rotation_q.w_, rotation_q.x_, rotation_q.y_, rotation_q.z_);
+    // printf("[Debug 3] %f %f, %f, %f\n", temp.translation_.w_, temp.translation_.x_, temp.translation_.y_, temp.translation_.z_);
+    // printf("[Debug 4] %f %f, %f, %f\n\n", translation_q.w_, translation_q.x_, translation_q.y_, translation_q.z_);
+    
+    // temp.encodeRotation(0.3, 0.2, 0.3);
+    // kfusion::utils::Quaternion<double> rotation_1 = temp.getRotation();
+    // printf("[Debug 2] %f %f, %f, %f\n", rotation_1.w_, rotation_1.x_, rotation_1.y_, rotation_1.z_);
+    // temp.encodeRotation(0.1, 0.1, 0.1);
+    // kfusion::utils::Quaternion<double> rotation_2 = temp.getRotation();
+    // printf("[Debug 2] %f %f, %f, %f\n", rotation_2.w_, rotation_2.x_, rotation_2.y_, rotation_2.z_);
+    // temp.encodeRotation(0.5, 0.5, 0.6);
+    // kfusion::utils::Quaternion<double> rotation_3 = temp.getRotation();
+    // printf("[Debug 2] %f %f, %f, %f\n", rotation_3.w_, rotation_3.x_, rotation_3.y_, rotation_3.z_);
+    // rotation_1 += rotation_2;
+    // rotation_1 += rotation_3;
+    // printf("[Debug 2] %f %f, %f, %f\n", rotation_1.w_, rotation_1.x_, rotation_1.y_, rotation_1.z_);
+
     // nodes_->at(0).transform.encodeRotation(0.1, 0.2, 0.3);
     // nodes_->at(0).transform.encodeTranslation(0.4, 0.5, 0.6);
     // cv::Vec3d translation;
@@ -226,11 +272,11 @@ void WarpField::energy_data(const std::vector<Vec3d> &canonical_vertices,
     // printf("[Debug 7] %f %f, %f, %f\n", nodes_->at(0).transform.translation_.w_, nodes_->at(0).transform.translation_.x_, nodes_->at(0).transform.translation_.y_, nodes_->at(0).transform.translation_.z_);
     // nodes_->at(0).transform.getTranslation(translation);
     // printf("[Debug 8] %f, %f, %f\n", translation[0], translation[1], translation[2]);
-    // cv::waitKey(0);
+    //cv::waitKey(0);
 
     for(int i = 0; i < live_vertices.size(); i++)
     {
-        if(std::isnan(canonical_vertices[i][0])) {
+        if(std::isnan(canonical_vertices[i][0]) || std::isnan(canonical_normals[i][0])) {
             continue;
         }
         getWeightsAndUpdateKNN(canonical_vertices[i], weights); // [Minhui 2018/1/28]would update the weights and ret_index_(might be index of KNN in nodes_)
@@ -238,7 +284,6 @@ void WarpField::energy_data(const std::vector<Vec3d> &canonical_vertices,
 //        FIXME: could just pass ret_index
         for(int j = 0; j < KNN_NEIGHBOURS; j++) {
             indices[j] = ret_index_[j];
-            std::cout << indices[j] << std::endl;
         }
 
         ceres::CostFunction* cost_function = DynamicFusionDataEnergy::Create(live_vertices[i],
@@ -250,30 +295,52 @@ void WarpField::energy_data(const std::vector<Vec3d> &canonical_vertices,
                                                                              indices,
                                                                              intr,
                                                                              i);
-
-        problem.AddResidualBlock(cost_function,  NULL /* squared loss */, warpProblem.mutable_epsilon(indices));
+        //ceres::HuberLoss *loss_function = new ceres::HuberLoss(1.0); 
+        ceres::TukeyLoss *loss_function = new ceres::TukeyLoss(0.01);
+        for(int m = 0; m < KNN_NEIGHBOURS; m++) {
+            nodes_->at(indices[m]).transform.rotation_.w_ = 1;
+            nodes_->at(indices[m]).transform.rotation_.x_ = 2;
+            nodes_->at(indices[m]).transform.rotation_.y_ = 3;
+            nodes_->at(indices[m]).transform.rotation_.z_ = 4;
+            nodes_->at(indices[m]).transform.translation_.w_ = 5;
+            nodes_->at(indices[m]).transform.translation_.x_ = 6;
+            nodes_->at(indices[m]).transform.translation_.y_ = 7;
+            nodes_->at(indices[m]).transform.translation_.z_ = 8;
+            // printf("%f %f %f %f\n", p[m][0], p[m][1], p[m][2], p[m][3]);
+            // printf("%f %f %f %f\n\n", nodes_->at(indices[m]).transform.rotation_.w_, nodes_->at(indices[m]).transform.rotation_.x_
+            //                       , nodes_->at(indices[m]).transform.rotation_.y_, nodes_->at(indices[m]).transform.rotation_.z_);
+        } 
+        problem.AddResidualBlock(cost_function, loss_function /* squared loss */, warpProblem.mutable_epsilon(indices));
         //problem.AddResidualBlock(cost_function,  NULL /* squared loss */, warpField_->getNodes()->at(indices[0]).transform);
-
+        //test
+        // std::vector<double*> p = warpProblem.mutable_epsilon(indices);
+        // for(int m = 0; m < KNN_NEIGHBOURS; m++) {
+        //     printf("%f %f %f %f\n", p[m][0], p[m][1], p[m][2], p[m][3]);
+        //     printf("%f %f %f %f\n\n", nodes_->at(indices[m]).transform.rotation_.w_, nodes_->at(indices[m]).transform.rotation_.x_
+        //                           , nodes_->at(indices[m]).transform.rotation_.y_, nodes_->at(indices[m]).transform.rotation_.z_);
+        // }       
     }
     printf("Debug 1\n");
     ceres::Solver::Options options;
     options.linear_solver_type = ceres::SPARSE_SCHUR;
     options.minimizer_progress_to_stdout = true;
-    options.num_linear_solver_threads = 1;
-    options.num_threads = 1;
+    options.num_linear_solver_threads = 12;
+    options.num_threads = 12;
     options.max_num_iterations = 100;
     ceres::Solver::Summary summary;
     printf("Debug 2\n");
     ceres::Solve(options, &problem, &summary);
     std::cout << summary.FullReport() << std::endl;
-//    auto params = warpProblem.params();
-//    for(int i = 0; i < nodes_->size()*6; i++)
-//    {
-//        std::cout<<params[i]<<" ";
-//        if((i+1) % 6 == 0)
-//            std::cout<<std::endl;
-//    }
-    //update_nodes(warpProblem.params()); // [Minhui 2018/1/30]
+
+    // auto params = warpProblem.params();
+    // for(int i = 0; i < nodes_->size()*8; i++)
+    // {
+    //     std::cout<<params[i]<<" ";
+    //     if((i+1) % 8 == 0)
+    //         std::cout<<std::endl;
+    // }
+    std::vector<double*> res = warpProblem.params();
+    update_nodes(res); // [Minhui 2018/1/30]
 }
 
 
@@ -457,8 +524,8 @@ utils::DualQuaternion<double> WarpField::DQB(const Vec3f& vertex, const std::vec
  * \param weight
  * \return
  */
-// void WarpField::update_nodes(const double *epsilon)
-// {
+void WarpField::update_nodes(std::vector<double*> &epsilons)
+{
 //     assert(epsilon != NULL);
 //     utils::DualQuaternion<float> eps;
 //     for (size_t i = 0; i < nodes_->size(); i++)
@@ -471,7 +538,29 @@ utils::DualQuaternion<double> WarpField::DQB(const Vec3f& vertex, const std::vec
 //         auto rot = utils::Quaternion<float>();
 //         nodes_->at(i).transform = utils::DualQuaternion<float>(tr, rot);
 //     }
-// }
+
+        assert(epsilons.size() != 0);//if(epsilons.size() == 0) exit(1);
+        utils::DualQuaternion<double> eps;
+        //printf("[Debug 11]%d\n", epsilons.size());
+        for(size_t j=0; j<epsilons.size(); j++)
+        {
+            auto epsilon = epsilons[j];
+            for (size_t i = 0; i < nodes_->size(); i++)
+            {
+                if(std::isnan(epsilon[i*8]))
+                    continue;
+                // epsilon [0:2] is rotation [3:5] is translation
+                eps.from_twist(epsilon[i*8], epsilon[i*8 + 1], epsilon[i*8 + 2],
+                            epsilon[i*8 + 4], epsilon[i*8 + 5], epsilon[i*8 + 6]);
+                //printf("[Debug 12]%f %f %f %f %f %f\n", epsilon[i*8], epsilon[i*8 + 1], epsilon[i*8 + 2],
+                            //epsilon[i*8 + 4], epsilon[i*8 + 5], epsilon[i*8 + 6]);
+                auto tr = eps.getTranslation() + nodes_->at(i).transform.getTranslation();
+                auto rot = eps.getRotation() + nodes_->at(i).transform.getRotation();
+                //auto rot = utils::Quaternion<float>(); //check
+                nodes_->at(i).transform = utils::DualQuaternion<double>(tr, rot);
+            }
+        }
+}
 
 /**
  * \brief
