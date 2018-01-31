@@ -389,17 +389,6 @@ void kfusion::KinFu::dynamicfusion(cuda::Depth& depth, cuda::Cloud current_frame
     }
     // std::vector<Vec3f> canonical_visible(warped);
     // FIXME: fix energy regularization and all energy function
-    //  FIXME: make up values for debuging.
-    cv::Matx33f warp_rot_mat(1, 2, 3, 4, 5, 6, 7, 8, 9);
-    cv::Vec3f warp_trans_vec(1, 2, 3);
-    cv::Vec3f one_point(8, 8, 8);
-    std::vector<cv::Vec3f> surface_points;
-    std::vector<cv::Matx33f> warp_rot_all;
-    std::vector<cv::Vec3f> warp_trans_all;
-    surface_points.push_back(one_point);
-    warp_rot_all.push_back(warp_rot_mat);
-    warp_trans_all.push_back(warp_trans_vec);
-    getWarp().energy_reg(surface_points, inverse_pose, warp_rot_all, warp_trans_all);
 
     /* [Minhui 2018/1/27] Transform the data structure of "current_frame" and "current_normals" from cuda::Cloud/Normals to std::vector<Vec3f> */
     cv::Mat live_cloud_host(current_frame.rows(), current_frame.cols(), CV_32FC4); // TODO: check "CV_32FC4"
@@ -425,20 +414,15 @@ void kfusion::KinFu::dynamicfusion(cuda::Depth& depth, cuda::Cloud current_frame
             live_normals[i * live_normal_host.cols + j][2] = point.z;
         }
     }
-    // [Original] getWarp().energy_data(warped, warped_normals, warped, warped_normals); //crashes, leave out for now
-    // cv::imshow("cloud_host", cloud_host);
-    // cv::imshow("live_cloud_host", live_cloud_host);
-    // cv::imshow("normal_host", normal_host);
-    // cv::imshow("live_normal_host", live_normal_host);
-    // cv::waitKey(10);
 
     std::vector<Vec3d> warped_d(warped.begin(), warped.end());
     std::vector<Vec3d> warped_normals_d(warped_normals.begin(), warped_normals.end());
     std::vector<Vec3d> live_d(live.begin(), live.end());
     std::vector<Vec3d> live_normals_d(live_normals.begin(), live_normals.end());
     std::vector<Vec3d> canonical_visible_d(warped_d);
+    // getWarp().energy_data(warped_d, warped_normals_d, live_d, live_normals_d, params_.intr);
 
-    getWarp().energy_data(warped_d, warped_normals_d, live_d, live_normals_d, params_.intr);
+    getWarp().energy_reg(warped_d, inverse_pose);
 
     getWarp().warp(warped_d, warped_normals_d);
 //    //ScopeTime time("fusion");
