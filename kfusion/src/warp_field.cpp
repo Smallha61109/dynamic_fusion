@@ -8,6 +8,7 @@
 #include <opencv2/core/affine.hpp>
 #include <kfusion/optimisation.hpp>
 #include <cmath>
+#include <opencv2/core/core.hpp>
 
 using namespace kfusion;
 std::vector<utils::DualQuaternion<double>> neighbours; //THIS SHOULD BE SOMEWHERE ELSE BUT TOO SLOW TO REINITIALISE
@@ -203,15 +204,15 @@ void WarpField::energy_data(const std::vector<Vec3d> &canonical_vertices,
     unsigned long indices[KNN_NEIGHBOURS];
 
     WarpProblem warpProblem(this);
-    live_vertices_ = live_vertices;
+    live_vertices_ = live_vertices; // [Minhui] using the whole point cloud as parameter of cost funciton would cause RAM rising rapidly
 
-    /* test */
-    // //nodes_->at(0).transform.encodeRotation(0.1, 0.2, 0.3);
+    // /* test */
+    // nodes_->at(0).transform.encodeRotation(0.1, 0.2, 0.3);
     // nodes_->at(0).transform.encodeTranslation(0.4, 0.5, 0.6);
     // cv::Vec3d translation;
     // nodes_->at(0).transform.getTranslation(translation);
-    // //auto rotation = nodes_->at(0).transform.getRotation();
-    // //printf("[Debug 5] %f, %f, %f\n", rotation.x_, rotation.y_, rotation.z_);
+    // auto rotation = nodes_->at(0).transform.getRotation();
+    // printf("[Debug 5] %f %f, %f, %f\n", rotation.w_, rotation.x_, rotation.y_, rotation.z_);
     // printf("[Debug 6] %f, %f, %f\n", translation[0], translation[1], translation[2]);
     // //YuYang
     // // std::vector<float*> p(3);
@@ -222,19 +223,23 @@ void WarpField::energy_data(const std::vector<Vec3d> &canonical_vertices,
     // *(p[0]) = 0.7;
     // *(p[1]) = 0.8;
     // *(p[2]) = 0.9;
-    // printf("[Debug 7] %f, %f, %f\n", nodes_->at(0).transform.translation_.x_, nodes_->at(0).transform.translation_.y_, nodes_->at(0).transform.translation_.z_);
+    // printf("[Debug 7] %f %f, %f, %f\n", nodes_->at(0).transform.translation_.w_, nodes_->at(0).transform.translation_.x_, nodes_->at(0).transform.translation_.y_, nodes_->at(0).transform.translation_.z_);
     // nodes_->at(0).transform.getTranslation(translation);
     // printf("[Debug 8] %f, %f, %f\n", translation[0], translation[1], translation[2]);
+    // cv::waitKey(0);
 
     for(int i = 0; i < live_vertices.size(); i++)
     {
-        if(std::isnan(canonical_vertices[i][0]))
+        if(std::isnan(canonical_vertices[i][0])) {
             continue;
+        }
         getWeightsAndUpdateKNN(canonical_vertices[i], weights); // [Minhui 2018/1/28]would update the weights and ret_index_(might be index of KNN in nodes_)
 
 //        FIXME: could just pass ret_index
-        for(int j = 0; j < KNN_NEIGHBOURS; j++)
+        for(int j = 0; j < KNN_NEIGHBOURS; j++) {
             indices[j] = ret_index_[j];
+            std::cout << indices[j] << std::endl;
+        }
 
         ceres::CostFunction* cost_function = DynamicFusionDataEnergy::Create(live_vertices[i],
                                                                              live_normals[i],
@@ -243,7 +248,8 @@ void WarpField::energy_data(const std::vector<Vec3d> &canonical_vertices,
                                                                              this,
                                                                              weights,
                                                                              indices,
-                                                                             intr);
+                                                                             intr,
+                                                                             i);
 
         problem.AddResidualBlock(cost_function,  NULL /* squared loss */, warpProblem.mutable_epsilon(indices));
         //problem.AddResidualBlock(cost_function,  NULL /* squared loss */, warpField_->getNodes()->at(indices[0]).transform);
@@ -253,15 +259,13 @@ void WarpField::energy_data(const std::vector<Vec3d> &canonical_vertices,
     ceres::Solver::Options options;
     options.linear_solver_type = ceres::SPARSE_SCHUR;
     options.minimizer_progress_to_stdout = true;
-    options.num_linear_solver_threads = 12;
-    options.num_threads = 12;
-    options.max_num_iterations = 2;
+    options.num_linear_solver_threads = 1;
+    options.num_threads = 1;
+    options.max_num_iterations = 100;
     ceres::Solver::Summary summary;
     printf("Debug 2\n");
     ceres::Solve(options, &problem, &summary);
-    printf("Debug 3\n");
     std::cout << summary.FullReport() << std::endl;
-    printf("Debug 4\n");
 //    auto params = warpProblem.params();
 //    for(int i = 0; i < nodes_->size()*6; i++)
 //    {

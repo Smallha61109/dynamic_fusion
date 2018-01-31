@@ -390,16 +390,16 @@ void kfusion::KinFu::dynamicfusion(cuda::Depth& depth, cuda::Cloud current_frame
     // std::vector<Vec3f> canonical_visible(warped);
     // FIXME: fix energy regularization and all energy function
     //  FIXME: make up values for debuging.
-    cv::Matx33f warp_rot_mat(1, 2, 3, 4, 5, 6, 7, 8, 9);
-    cv::Vec3f warp_trans_vec(1, 2, 3);
-    cv::Vec3f one_point(8, 8, 8);
-    std::vector<cv::Vec3f> surface_points;
-    std::vector<cv::Matx33f> warp_rot_all;
-    std::vector<cv::Vec3f> warp_trans_all;
-    surface_points.push_back(one_point);
-    warp_rot_all.push_back(warp_rot_mat);
-    warp_trans_all.push_back(warp_trans_vec);
-    getWarp().energy_reg(surface_points, inverse_pose, warp_rot_all, warp_trans_all);
+    // cv::Matx33f warp_rot_mat(1, 2, 3, 4, 5, 6, 7, 8, 9);
+    // cv::Vec3f warp_trans_vec(1, 2, 3);
+    // cv::Vec3f one_point(8, 8, 8);
+    // std::vector<cv::Vec3f> surface_points;
+    // std::vector<cv::Matx33f> warp_rot_all;
+    // std::vector<cv::Vec3f> warp_trans_all;
+    // surface_points.push_back(one_point);
+    // warp_rot_all.push_back(warp_rot_mat);
+    // warp_trans_all.push_back(warp_trans_vec);
+    // getWarp().energy_reg(surface_points, inverse_pose, warp_rot_all, warp_trans_all);
 
     /* [Minhui 2018/1/27] Transform the data structure of "current_frame" and "current_normals" from cuda::Cloud/Normals to std::vector<Vec3f> */
     cv::Mat live_cloud_host(current_frame.rows(), current_frame.cols(), CV_32FC4); // TODO: check "CV_32FC4"
