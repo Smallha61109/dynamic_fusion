@@ -264,8 +264,7 @@ bool kfusion::KinFu::operator()(const kfusion::cuda::Depth& depth, const kfusion
         return ++frame_counter_, false;
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////
-    // ICP
+    // ***************************ICP***********************************
     Affine3f affine; // curr -> prev
     {
         //ScopeTime time("icp");
@@ -290,8 +289,7 @@ bool kfusion::KinFu::operator()(const kfusion::cuda::Depth& depth, const kfusion
 	// volume_->integrate(dists_, poses_.back(), p.intr);
 
 
-    ///////////////////////////////////////////////////////////////////////////////////////////
-    // Ray casting
+    // ***************************Ray casting***********************************
     {
         //ScopeTime time("ray-cast-all");
 #if defined USE_DEPTH
@@ -358,9 +356,9 @@ void kfusion::KinFu::dynamicfusion(cuda::Depth& depth, cuda::Cloud current_frame
     cv::Mat cloud_host(depth.rows(), depth.cols(), CV_32FC4);
     cloud.download(cloud_host.ptr<Point>(), cloud_host.step);
     std::vector<Vec3f> warped(cloud_host.rows * cloud_host.cols); // [Minhui 2018/1/27]"cloud_host.rows * cloud_host.cols" always equals to 307200(640*480)
-    auto inverse_pose = camera_pose.inv(cv::DECOMP_SVD); // [Minhui 2018/1/27]"camera_pose" is obtained from icp in KinectFusion
+    auto inverse_pose = camera_pose.inv(cv::DECOMP_SVD);
     // [Minhui 2018/1/28]Why inverse: transform the corrdinate to the first frame (probably the global coordinate)
-    //
+
     //TODO: check here
     for (int i = 0; i < cloud_host.rows; i++)
     {
@@ -387,8 +385,6 @@ void kfusion::KinFu::dynamicfusion(cuda::Depth& depth, cuda::Cloud current_frame
             warped_normals[i * normal_host.cols + j] = inverse_pose * warped[i * cloud_host.cols + j]; // [Minhui 2018/1/28]add
         }
     }
-    // std::vector<Vec3f> canonical_visible(warped);
-    // FIXME: fix energy regularization and all energy function
 
     /* [Minhui 2018/1/27] Transform the data structure of "current_frame" and "current_normals" from cuda::Cloud/Normals to std::vector<Vec3f> */
     cv::Mat live_cloud_host(current_frame.rows(), current_frame.cols(), CV_32FC4); // TODO: check "CV_32FC4"
@@ -420,7 +416,7 @@ void kfusion::KinFu::dynamicfusion(cuda::Depth& depth, cuda::Cloud current_frame
     std::vector<Vec3d> live_d(live.begin(), live.end());
     std::vector<Vec3d> live_normals_d(live_normals.begin(), live_normals.end());
     std::vector<Vec3d> canonical_visible_d(warped_d);
-    getWarp().energy_data(warped_d, warped_normals_d, live_d, live_normals_d, params_.intr);
+    // getWarp().energy_data(warped_d, warped_normals_d, live_d, live_normals_d, params_.intr);
 
     // getWarp().energy_reg(warped_d, inverse_pose);
 
