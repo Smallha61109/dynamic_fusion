@@ -1,3 +1,4 @@
 build/
 data*
 .vs*
+build_test.sh
