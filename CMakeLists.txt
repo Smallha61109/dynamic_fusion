@@ -2,7 +2,14 @@ cmake_minimum_required(VERSION 3.5.0)
 
 # ---[ Configurations types
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Possible configurations" FORCE)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOM_STATIC_BUILD -std=c++11 -DFORCE_INLINERS -D_MWAITXINTRIN_H_INCLUDED -Wno-write-strings")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -g -DOM_STATIC_BUILD -std=c++11 -DFORCE_INLINERS -D_MWAITXINTRIN_H_INCLUDED -Wno-write-strings")
+
+set(CMAKE_C_FLAGS "-fPIC -g ${CMAKE_C_FLAGS}")
+set(CUDA_HOST_COMPILER "/usr/bin/gcc-5")
+
+MESSAGE( STATUS "CMAKE_C_FLAGS: " ${CMAKE_C_FLAGS} )
+MESSAGE( STATUS "CUDA_HOST_COMPILER: " ${CUDA_HOST_COMPILER} )
+
 set(CMAKE_CXX_STANDARD 11)
 if (DEFINED CMAKE_BUILD_TYPE)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS ${CMAKE_CONFIGURATION_TYPES})
@@ -106,13 +113,6 @@ if(OPT_INCLUDE_DIRS AND OPT_LIBRARIES AND TERRA_LIBRARIES AND OPENMESH_LIBRARIES
 else()
   message("-- Warning: BUILD_TESTS set to OFF due to missing dependecy")
 endif()
-
-# set(OPT_INCLUDE_DIRS /home/mml-taitanx/library/Opt/examples/external/mLib/include /home/mml-taitanx/library/Opt/examples/shared/ /home/mml-taitanx/library/Projects/Opt/API/release/include)
-# set(OPT_HEADER_PATH /home/mml-taitanx/library/Opt/API/release/include)
-# set(OPT_LIBRARIES /home/mml-taitanx/library/Opt/API/release/lib/libOptDev.a)
-# set(TERRA_LIBRARIES /home/mml-taitanx/library/terra/lib/libterra.a)
-# set(OPENMESH_LIBRARIES /home/mml-taitanx/library/Opt/examples/external/OpenMesh/lib/linux/libOpenMeshCore.a /home/mml-taitanx/library/Opt/examples/external/OpenMesh/lib/linux/libOpenMeshTools.a)
-# set(OPENMESH_INCLUDE_DIRS /home/mml-taitanx/library/Opt/examples/external/OpenMesh/include)
 
 if(BUILD_TESTS)
   find_package(GTest REQUIRED)
