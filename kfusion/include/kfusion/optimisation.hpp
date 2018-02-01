@@ -201,7 +201,7 @@ struct DynamicFusionEnergyFunction {
                                             inverse_pose)); //FIXME: 2 ret_index
     for (int i = 0; i < KNN_NEIGHBOURS; i++)
       cost_function->AddParameterBlock(8);
-    cost_function->SetNumResiduals(3); //TODO: Change to 1
+    cost_function->SetNumResiduals(1);
     return cost_function;
   }
 

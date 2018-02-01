@@ -90,6 +90,50 @@ void WarpField::energy(
   assert(normals.rows() == frame.rows());
 }
 
+void WarpField::energy_function(const std::vector<Vec3d>& canonical_vertices,
+                                const std::vector<Vec3d>& canonical_normals,
+                                const std::vector<Vec3d>& live_vertices,
+                                const std::vector<Vec3d>& live_normals,
+                                const Intr& intr,
+                                cv::Affine3f inverse_pose) {
+  ceres::Problem problem;
+  float weights[KNN_NEIGHBOURS];
+  unsigned long indices[KNN_NEIGHBOURS];
+  WarpProblem warpProblem(this);
+  live_vertices_ = live_vertices;
+  int counts = 0;
+
+  std::cout << "Adding energy function cost function..." << std::endl;
+  for (int i = 0; i < canonical_vertices.size(); i++) {
+    if (std::isnan(canonical_vertices[i][0]) ||
+        std::isnan(canonical_normals[i][0]))
+      continue;
+    getWeightsAndUpdateKNN(canonical_vertices[i], weights);
+    for (int j = 0; j < KNN_NEIGHBOURS; j++) indices[j] = ret_index_[j];
+    counts += 1;
+    ceres::CostFunction* cost_function = DynamicFusionEnergyFunction::Create(
+        live_vertices[i], live_normals[i], canonical_vertices[i],
+        canonical_normals[i], this, weights, indices, intr, i,
+        *nodes_, ret_index_, inverse_pose);
+    // ceres::HuberLoss* loss_function = new ceres::HuberLoss(1.0);
+    problem.AddResidualBlock(cost_function, NULL /* squared loss */,
+                             warpProblem.mutable_epsilon(ret_index_));
+  }
+  std::cout << counts << " cost function added..." << std::endl;
+  std::cout << "Setting ceres options..." << std::endl;
+  ceres::Solver::Options options;
+  options.linear_solver_type = ceres::SPARSE_SCHUR;
+  options.minimizer_progress_to_stdout = true;
+  options.num_linear_solver_threads = 12;
+  options.num_threads = 12;
+  options.max_num_iterations = 100;
+  ceres::Solver::Summary summary;
+  std::cout << "Solving init..." << std::endl;
+  ceres::Solve(options, &problem, &summary);
+  std::cout << summary.FullReport() << std::endl;
+  update_nodes(warpProblem.params());
+}
+
 void WarpField::energy_data(const std::vector<Vec3d>& canonical_vertices,
                             const std::vector<Vec3d>& canonical_normals,
                             const std::vector<Vec3d>& live_vertices,
@@ -184,11 +228,11 @@ void WarpField::energy_data(const std::vector<Vec3d>& canonical_vertices,
     double project_v = project_point[1];
     double depth = 0.0f;
 
-    depth = live_vertices[project_u * 640 + project_v][2];
-    if (std::isnan(depth) || project_u >= 480 || project_u < 0 ||
-        project_v >= 640 || project_v < 0) {
-      continue;
+    if (project_u >= 480 || project_u < 0 || project_v >= 640 || project_v < 0) {
+        continue;
     }
+    depth = live_vertices[project_u * 640 + project_v][2];
+    if (std::isnan(depth)) { continue; }
     /*    ************test************   */
 
     ceres::CostFunction* cost_function = DynamicFusionDataEnergy::Create(

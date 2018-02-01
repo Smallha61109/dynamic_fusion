@@ -53,6 +53,12 @@ class WarpField {
                                   kfusion::utils::DualQuaternion<double>>>&
           edges);
 
+  void energy_function(const std::vector<Vec3d>& canonical_vertices,
+                       const std::vector<Vec3d>& canonical_normals,
+                       const std::vector<Vec3d>& live_vertices,
+                       const std::vector<Vec3d>& live_normals,
+                       const Intr& intr,
+                       cv::Affine3f inverse_pose);
   void energy_data(const std::vector<Vec3d>& canonical_vertices,
                    const std::vector<Vec3d>& canonical_normals,
                    const std::vector<Vec3d>& live_vertices,

@@ -416,6 +416,8 @@ void kfusion::KinFu::dynamicfusion(cuda::Depth& depth, cuda::Cloud current_frame
     std::vector<Vec3d> live_d(live.begin(), live.end());
     std::vector<Vec3d> live_normals_d(live_normals.begin(), live_normals.end());
     std::vector<Vec3d> canonical_visible_d(warped_d);
+    getWarp().energy_function(warped_d, warped_normals_d, live_d,
+                              live_normals_d, params_.intr, inverse_pose);
     // getWarp().energy_data(warped_d, warped_normals_d, live_d, live_normals_d, params_.intr);
 
     // getWarp().energy_reg(warped_d, inverse_pose);
