@@ -177,15 +177,7 @@ struct DynamicFusionRegEnergy {
       weights_[i] = weights[i];
     }
   };
-  // DynamicFusionRegEnergy(const std::vector<size_t> &ret_index,
-  //                        const float weights[KNN_NEIGHBOURS],
-  //                        const cv::Affine3f &inverse_pose)
-  //     : ret_index_(ret_index), inverse_pose_(inverse_pose) {
-  //   weights_ = new float[KNN_NEIGHBOURS];
-  //   for (int i = 0; i < KNN_NEIGHBOURS; i++) {
-  //     weights_[i] = weights[i];
-  //   }
-  // };
+
   virtual ~DynamicFusionRegEnergy(){
     delete[] weights_;
   };
@@ -206,14 +198,6 @@ struct DynamicFusionRegEnergy {
       rotation_sum += weights_[i] * rotation;
       translation_sum += weights_[i] * translation;
     }
-    // kfusion::utils::DualQuaternion<double> dqb;
-    // dqb =
-    //     kfusion::utils::DualQuaternion<double>(translation_sum,
-    //     rotation_sum);
-    // kfusion::utils::Quaternion<double> point_rot(0.0f, 0.0f, 0.0f, 0.0f);
-    // kfusion::utils::Quaternion<double> point_trans(0.0f, 0.0f, 0.0f, 0.0f);
-    // point_rot = dqb.getRotation();
-    // point_trans = dqb.getTranslation();
     double sinr = 2.0 * (rotation_sum.w_ * rotation_sum.x_ +
                          rotation_sum.y_ * rotation_sum.z_);
     double cosr = 1.0 - 2.0 * (pow(rotation_sum.x_, 2) + pow(rotation_sum.y_, 2));
@@ -262,7 +246,7 @@ struct DynamicFusionRegEnergy {
             new DynamicFusionRegEnergy(nodes, ret_index, weights,
                                        inverse_pose));
     for (int i = 0; i < KNN_NEIGHBOURS; i++)
-      cost_function->AddParameterBlock(6);
+      cost_function->AddParameterBlock(8);
     cost_function->SetNumResiduals(1);
     // delete DynamicFusionRegEnergy;
     return cost_function;
@@ -277,59 +261,32 @@ struct DynamicFusionRegEnergy {
 class WarpProblem {
  public:
   explicit WarpProblem(kfusion::WarpField *warp) : warpField_(warp) {
-    parameters_.resize(warpField_->getNodes()->size() * 6);
-    for (int i = 0; i < warpField_->getNodes()->size(); i++) {
-      parameters_[i * 6 + 0] =
-          &(warpField_->getNodes()->at(i).transform.rotation_.x_);
-      parameters_[i * 6 + 1] =
-          &(warpField_->getNodes()->at(i).transform.rotation_.y_);
-      parameters_[i * 6 + 2] =
-          &(warpField_->getNodes()->at(i).transform.rotation_.z_);
-      parameters_[i * 6 + 3] =
-          &(warpField_->getNodes()->at(i).transform.translation_.x_);
-      parameters_[i * 6 + 4] =
-          &(warpField_->getNodes()->at(i).transform.translation_.y_);
-      parameters_[i * 6 + 5] =
-          &(warpField_->getNodes()->at(i).transform.translation_.z_);
+    parameters_.resize(warpField_->getNodes()->size() * 8);
+    for(int i = 0; i < warpField_->getNodes()->size(); i++) {
+      parameters_[i * 8 + 0] = &(warpField_->getNodes()->at(i).transform.rotation_.w_);
+      parameters_[i * 8 + 1] = &(warpField_->getNodes()->at(i).transform.rotation_.x_);
+      parameters_[i * 8 + 2] = &(warpField_->getNodes()->at(i).transform.rotation_.y_);
+      parameters_[i * 8 + 3] = &(warpField_->getNodes()->at(i).transform.rotation_.z_);
+      parameters_[i * 8 + 4] = &(warpField_->getNodes()->at(i).transform.translation_.w_);
+      parameters_[i * 8 + 5] = &(warpField_->getNodes()->at(i).transform.translation_.x_);
+      parameters_[i * 8 + 6] = &(warpField_->getNodes()->at(i).transform.translation_.y_);
+      parameters_[i * 8 + 7] = &(warpField_->getNodes()->at(i).transform.translation_.z_);
     }
 
-    // mutable_epsilon_[i] =
-    // &(nodes_->at(index_list[i]).transform.translation_.x_);
-
-    // parameters_ = new double[warpField_->getNodes()->size() * 6];
-    // // [Minhui 2018/1/29] Initialization per frame (update the parameters_
-    // with wrap functions in last frame)
     // // TODO: Retrieved type of "rotation" needs to be check (x, y, z) or
     // (angle, x, y, z)?
-    // for(int i = 0; i < warpField_->getNodes()->size(); i++) {
-    //     //double translation[3];
-    //     cv::Vec3f translation;
-
-    //     warpField_->getNodes()->at(i).transform.getTranslation(translation);
-    //     auto rotation =
-    //     warpField_->getNodes()->at(i).transform.getRotation();
-    //     parameters_[i * 6 + 0] = rotation.x_;
-    //     parameters_[i * 6 + 1] = rotation.y_;
-    //     parameters_[i * 6 + 2] = rotation.z_;
-    //     parameters_[i * 6 + 3] = translation[0];
-    //     parameters_[i * 6 + 4] = translation[1];
-    //     parameters_[i * 6 + 5] = translation[2];
-    // }
-    // parameters_ = new double[warpField_->getNodes()->size() * 6];
   };
 
   ~WarpProblem() {
-    // delete[] parameters_;
-    // std::vector<double *> *v = &parameters_;
-    // delete v;
   }
+
   std::vector<double *> mutable_epsilon(
       const unsigned long *index_list) const {
     std::vector<double *> mutable_epsilon_(KNN_NEIGHBOURS);
     for (int i = 0; i < KNN_NEIGHBOURS; i++) {
       // mutable_epsilon_[i] =
       // &(nodes_->at(index_list[i]).transform.translation_.x_);
-      mutable_epsilon_[i] = parameters_[index_list[i] * 6];
+      mutable_epsilon_[i] = parameters_[index_list[i] * 8];
     }
     return mutable_epsilon_;
   }
@@ -338,7 +295,7 @@ class WarpProblem {
       const std::vector<size_t> &index_list) const {
     std::vector<double *> mutable_epsilon_(KNN_NEIGHBOURS);
     for (int i = 0; i < KNN_NEIGHBOURS; i++)
-      mutable_epsilon_[i] = parameters_[index_list[i] * 6];  // Blocks of 6
+      mutable_epsilon_[i] = parameters_[index_list[i] * 8];  // Blocks of 8
     return mutable_epsilon_;
   }
 
