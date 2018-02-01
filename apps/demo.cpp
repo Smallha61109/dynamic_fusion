@@ -51,7 +51,13 @@ struct DynamicFusionApp
 
         view_host_.create(view_device_.rows(), view_device_.cols(), CV_8UC4);
         view_device_.download(view_host_.ptr<void>(), view_host_.step);
+        
+        static int scene_frame_idx = 1;
+        std::string scene_file = "scene_" + std::to_string(scene_frame_idx);
+        scene_file = scene_file + ".jpg";
         cv::imshow("Scene", view_host_);
+        cv::imwrite(scene_file, view_host_);
+        scene_frame_idx++;
     }
 
     void show_warp(KinFu &kinfu)

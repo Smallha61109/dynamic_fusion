@@ -223,7 +223,11 @@ namespace kfusion{
                 // correctly.
                 assert( !((w_ == 0) && (x_ == 0) && (y_ == 0) && (z_ == 0)));
                 T theNorm = norm();
+               
                 assert(theNorm > 0);
+                // if(theNorm > 0) {
+                //     printf("(error)the Norm in quaternion is 0\n");    
+                // }
                 (*this) = (1.0/theNorm) * (*this);
             }
 

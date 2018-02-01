@@ -74,7 +74,8 @@ namespace kfusion
         utils::DualQuaternion<double> DQB(const Vec3f& vertex, const std::vector<double*> epsilon) const;
         utils::DualQuaternion<double> DQB_r(const Vec3d& vertex, const float weights[KNN_NEIGHBOURS], const unsigned long knn_indices_[KNN_NEIGHBOURS]) const; // [Minhui 2018/1/28]
         void update_nodes(std::vector<double*> &epsilons); // [Minhui 2018/1/30]
-
+        void update_nodes(const double *epsilon);
+        
         void getWeightsAndUpdateKNN(const Vec3f& vertex, float weights[KNN_NEIGHBOURS]) const;
 
         float weighting(float squared_dist, float weight) const;
@@ -89,6 +90,9 @@ namespace kfusion
         std::vector<float>* getDistSquared() const;
         std::vector<size_t>* getRetIndex() const;
         //void updateTransformations(double[KNN_NEIGHBOURS][6]); // [Minhui 2018/1/29]
+
+        cv::Vec2d project(const double &x, const double &y, const double &z, const Intr& intr) const;
+        cv::Vec3d reproject(const double &u, const double &v, const double &depth, const Intr& intr) const;
 
         std::vector<cv::Vec3d> live_vertices_;
 
