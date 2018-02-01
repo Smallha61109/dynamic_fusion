@@ -353,14 +353,14 @@ void kfusion::KinFu::dynamicfusion(cuda::Depth& depth, cuda::Cloud current_frame
     cloud.create(depth.rows(), depth.cols());
     normals.create(depth.rows(), depth.cols());
     auto camera_pose = poses_.back();
-    tsdf().raycast(camera_pose, params_.intr, cloud, normals); // [Minhui 2018/1/27](Need to be checked)"cloud" might be the surface of visible canonical model seen from camera_pose 
+    tsdf().raycast(camera_pose, params_.intr, cloud, normals); // [Minhui 2018/1/27](Need to be checked)"cloud" might be the surface of visible canonical model seen from camera_pose
 
     cv::Mat cloud_host(depth.rows(), depth.cols(), CV_32FC4);
     cloud.download(cloud_host.ptr<Point>(), cloud_host.step);
     std::vector<Vec3f> warped(cloud_host.rows * cloud_host.cols); // [Minhui 2018/1/27]"cloud_host.rows * cloud_host.cols" always equals to 307200(640*480)
     auto inverse_pose = camera_pose.inv(cv::DECOMP_SVD); // [Minhui 2018/1/27]"camera_pose" is obtained from icp in KinectFusion
     // [Minhui 2018/1/28]Why inverse: transform the corrdinate to the first frame (probably the global coordinate)
-    
+    //
     //TODO: check here
     for (int i = 0; i < cloud_host.rows; i++)
     {
@@ -390,16 +390,16 @@ void kfusion::KinFu::dynamicfusion(cuda::Depth& depth, cuda::Cloud current_frame
     // std::vector<Vec3f> canonical_visible(warped);
     // FIXME: fix energy regularization and all energy function
     //  FIXME: make up values for debuging.
-    cv::Matx33f warp_rot_mat(1, 2, 3, 4, 5, 6, 7, 8, 9);
-    cv::Vec3f warp_trans_vec(1, 2, 3);
-    cv::Vec3f one_point(8, 8, 8);
-    std::vector<cv::Vec3f> surface_points;
-    std::vector<cv::Matx33f> warp_rot_all;
-    std::vector<cv::Vec3f> warp_trans_all;
-    surface_points.push_back(one_point);
-    warp_rot_all.push_back(warp_rot_mat);
-    warp_trans_all.push_back(warp_trans_vec);
-    getWarp().energy_reg(surface_points, inverse_pose, warp_rot_all, warp_trans_all);
+    // cv::Matx33f warp_rot_mat(1, 2, 3, 4, 5, 6, 7, 8, 9);
+    // cv::Vec3f warp_trans_vec(1, 2, 3);
+    // cv::Vec3f one_point(8, 8, 8);
+    // std::vector<cv::Vec3f> surface_points;
+    // std::vector<cv::Matx33f> warp_rot_all;
+    // std::vector<cv::Vec3f> warp_trans_all;
+    // surface_points.push_back(one_point);
+    // warp_rot_all.push_back(warp_rot_mat);
+    // warp_trans_all.push_back(warp_trans_vec);
+    // getWarp().energy_reg(surface_points, inverse_pose, warp_rot_all, warp_trans_all);
 
     /* [Minhui 2018/1/27] Transform the data structure of "current_frame" and "current_normals" from cuda::Cloud/Normals to std::vector<Vec3f> */
     cv::Mat live_cloud_host(current_frame.rows(), current_frame.cols(), CV_32FC4); // TODO: check "CV_32FC4"
@@ -425,8 +425,6 @@ void kfusion::KinFu::dynamicfusion(cuda::Depth& depth, cuda::Cloud current_frame
             live_normals[i * live_normal_host.cols + j][2] = point.z;
         }
     }
-    /* (End) */
-
     // [Original] getWarp().energy_data(warped, warped_normals, warped, warped_normals); //crashes, leave out for now
     // cv::imshow("cloud_host", cloud_host);
     // cv::imshow("live_cloud_host", live_cloud_host);
@@ -438,14 +436,13 @@ void kfusion::KinFu::dynamicfusion(cuda::Depth& depth, cuda::Cloud current_frame
     std::vector<Vec3d> warped_normals_d(warped_normals.begin(), warped_normals.end());
     std::vector<Vec3d> live_d(live.begin(), live.end());
     std::vector<Vec3d> live_normals_d(live_normals.begin(), live_normals.end());
-    std::vector<Vec3d> canonical_visible(warped_d);
+    std::vector<Vec3d> canonical_visible_d(warped_d);
 
     getWarp().energy_data(warped_d, warped_normals_d, live_d, live_normals_d, params_.intr);
 
-    // TODO: getwarp.warp() always run into nan so this is not functioning
     getWarp().warp(warped_d, warped_normals_d);
 //    //ScopeTime time("fusion");
-    tsdf().surface_fusion(getWarp(), warped_d, canonical_visible, depth, camera_pose, params_.intr);
+    tsdf().surface_fusion(getWarp(), warped_d, canonical_visible_d, depth, camera_pose, params_.intr);
 
     cv::Mat depth_cloud(depth.rows(),depth.cols(), CV_16U);
     depth.download(depth_cloud.ptr<void>(), depth_cloud.step);
