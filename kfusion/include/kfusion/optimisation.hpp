@@ -8,6 +8,217 @@
 #include "ceres/ceres.h"
 #include "ceres/rotation.h"
 
+struct DynamicFusionEnergyFunction {
+  DynamicFusionEnergyFunction(const cv::Vec3d &live_vertex,
+                              const cv::Vec3d &live_normal,
+                              const cv::Vec3d &canonical_vertex,
+                              const cv::Vec3d &canonical_normal,
+                              kfusion::WarpField *warpField,
+                              const float weights[KNN_NEIGHBOURS],
+                              const unsigned long knn_indices[KNN_NEIGHBOURS],
+                              const kfusion::Intr &intr,
+                              const int &index,
+                              const std::vector<kfusion::deformation_node> &nodes,
+                              const std::vector<size_t> &ret_index,
+                              const cv::Affine3f &inverse_pose)
+      : live_vertex_(live_vertex),
+        live_normal_(live_normal),
+        canonical_vertex_(canonical_vertex),
+        canonical_normal_(canonical_normal),
+        warpField_(warpField),
+        intr_(intr),
+        index_(index),
+        ret_index_(ret_index),
+        inverse_pose_(inverse_pose){
+    weights_ = new float[KNN_NEIGHBOURS];
+    knn_indices_ = new unsigned long[KNN_NEIGHBOURS];
+    nodes_ = &nodes;
+    for (int i = 0; i < KNN_NEIGHBOURS; i++) {
+      weights_[i] = weights[i];
+      knn_indices_[i] = knn_indices[i];
+    }
+  }
+
+  ~DynamicFusionEnergyFunction() {
+    delete[] weights_;
+    delete[] knn_indices_;
+  }
+
+  bool operator()(double const *const *epsilon_, double *residuals) const {
+    double lambda = 200;
+    // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Data energy<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    double threshold = 0.01;
+    auto nodes = warpField_->getNodes();
+    cv::Vec3d canonical_point = canonical_vertex_;
+    cv::Vec3d canonical_point_n = canonical_normal_;
+
+    // [Step 2] Calculte the dqb warp function of the canonical point
+    kfusion::utils::Quaternion<double> translation_sum(0.0, 0.0, 0.0, 0.0);
+    kfusion::utils::Quaternion<double> rotation_sum(0.0, 0.0, 0.0, 0.0);
+    float weights_sum = 0;
+    for (int i = 0; i < KNN_NEIGHBOURS; i++) {
+      weights_sum += weights_[i];
+    }
+    for (int i = 0; i < KNN_NEIGHBOURS; i++) {
+      weights_[i] = weights_[i] / weights_sum;
+    }
+    for (int i = 0; i < KNN_NEIGHBOURS; i++) {
+      kfusion::utils::DualQuaternion<double> temp;
+      kfusion::utils::Quaternion<double> rotation(0.0f, 0.0f, 0.0f, 0.0f);
+      kfusion::utils::Quaternion<double> translation(0.0f, 0.0f, 0.0f, 0.0f);
+      temp.rotation_.w_ = epsilon_[i][0];
+      temp.rotation_.x_ = epsilon_[i][1];
+      temp.rotation_.y_ = epsilon_[i][2];
+      temp.rotation_.z_ = epsilon_[i][3];
+      temp.translation_.w_ = epsilon_[i][4];
+      temp.translation_.x_ = epsilon_[i][5];
+      temp.translation_.y_ = epsilon_[i][6];
+      temp.translation_.z_ = epsilon_[i][7];
+      rotation = temp.getRotation();
+      translation = temp.getTranslation();
+      rotation_sum += weights_[i] * rotation;
+      translation_sum += weights_[i] * translation;
+    }
+    double sinr = 2.0 * (rotation_sum.w_ * rotation_sum.x_ +
+                         rotation_sum.y_ * rotation_sum.z_);
+    double cosr = 1.0 - 2.0 * (pow(rotation_sum.x_, 2) +
+                               pow(rotation_sum.y_, 2));
+    double siny = 2.0 * (rotation_sum.w_ * rotation_sum.z_ +
+                         rotation_sum.x_ * rotation_sum.y_);
+    double cosy = 1.0 - 2.0 * (rotation_sum.y_ * rotation_sum.y_ +
+                               rotation_sum.z_ * rotation_sum.z_);
+    double sinp = 2.0 * (rotation_sum.w_ * rotation_sum.y_ -
+                         rotation_sum.z_ * rotation_sum.x_);
+    cv::Vec3d i_rot;
+    if (fabs(sinp) >= 1)
+      cv::Vec3d i_rot(atan2(sinr, cosr), copysign(M_PI / 2, sinp), atan2(siny, cosy));
+    else
+      cv::Vec3d i_rot(atan2(sinr, cosr), asin(sinp), atan2(siny, cosy));
+    cv::Vec3d i_trans(translation_sum.x_, translation_sum.y_, translation_sum.z_);
+    cv::Affine3d i_warp(i_rot, i_trans);
+
+    canonical_point = i_warp * canonical_point;
+    canonical_point_n = i_warp * canonical_point_n;
+
+    cv::Vec2d project_point =
+        project(canonical_point[0], canonical_point[1],
+                canonical_point[2]);
+    // Is point.z needs to be in homogeneous coordinate? (point.z==1)
+    double project_u = project_point[0];
+    double project_v = project_point[1];
+    double depth = 0.0f;
+
+    if (project_u >= 480 || project_u < 0 || project_v >= 640 ||
+        project_v < 0) {
+      residuals[0] = 1000000000;
+      residuals[1] = 1000000000;
+      residuals[2] = 1000000000;
+      return true;
+    }
+
+    depth = warpField_->live_vertices_[project_u * 640 + project_v][2];
+    if (std::isnan(depth)) {
+      residuals[0] = 1000000000;
+      residuals[1] = 1000000000;
+      residuals[2] = 1000000000;
+      return true;
+    }
+
+    // [Step 3] re-project the correspondence to 3D space
+    cv::Vec3d reproject_point = reproject(project_u, project_v, depth);
+    double dist_x = canonical_point[0] - reproject_point[0];
+    double dist_y = canonical_point[1] - reproject_point[1];
+    double dist_z = canonical_point[2] - reproject_point[2];
+    double dist_all = sqrt(pow(dist_x, 2) +
+                           pow(dist_y, 2) +
+                           pow(dist_z, 2));
+    double tukey =
+        dist_all <= threshold ?
+            dist_all * ceres::pow((1.0 - (dist_all * dist_all) / (threshold * threshold)), 2)
+                : 0.0;
+
+    // // [Step 4] Calculate the residual
+    // residuals[0] = canonical_point[0] - reproject_x;
+    // residuals[1] = canonical_point[1] - reproject_y;
+    // residuals[2] = canonical_point[2] - reproject_z;
+    // if (std::isnan(residuals[0]) || std::isnan(residuals[1]) ||
+    //     std::isnan(residuals[2])) {
+    //   cv::waitKey(0); //FIXME: ???
+    // }
+    // ============================================================================
+    double sum_j = 0;
+    double delta = 0.0001;
+    cv::Affine3f Tic;
+    Tic = inverse_pose_.concatenate(i_warp);
+    for (int i = 0; i < KNN_NEIGHBOURS; ++i) {
+      auto j_point = nodes_->at(ret_index_[i]).vertex;
+      cv::Vec3f j_rot(epsilon_[i][0], epsilon_[i][1], epsilon_[i][2]);
+      cv::Vec3f j_trans(epsilon_[i][3], epsilon_[i][4], epsilon_[i][5]);
+      cv::Affine3f j_warp(j_rot, j_trans);
+      cv::Affine3f Tjc;
+      Tjc = inverse_pose_.concatenate(j_warp);
+      auto difference = Tic * j_point - Tjc * j_point;
+      float dist = sqrt(pow(difference[0], 2) +
+                        pow(difference[1], 2) +
+                        pow(difference[2], 2));
+      float huber =
+          dist <= delta ? dist * dist / 2 : delta * dist - delta * delta / 2;
+      sum_j += weights_[i] * huber;
+    }
+    // >>>>>>>>>>>>>>>>>>>>>>>>Regularization energy>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    residuals[0] = tukey + lambda * sum_j;
+    return true;
+  }
+
+  cv::Vec2d project(const double &x, const double &y, const double &z) const {
+    cv::Vec2d project_point;
+    project_point[0] = intr_.fx * (x / z) + intr_.cx;
+    project_point[1] = intr_.fy * (y / z) + intr_.cy;
+    return project_point;
+  }
+
+  cv::Vec3d reproject(const double &u, const double &v, const double &depth) const {
+    cv::Vec3d reproject_point;
+    reproject_point[0] = depth * (u - intr_.cx) * intr_.fx;
+    reproject_point[1] = depth * (v - intr_.cy) * intr_.fy;
+    reproject_point[2] = depth;
+    return reproject_point;
+  }
+
+  static ceres::CostFunction *Create(
+      const cv::Vec3d &live_vertex, const cv::Vec3d &live_normal,
+      const cv::Vec3d &canonical_vertex, const cv::Vec3d &canonical_normal,
+      kfusion::WarpField *warpField, const float weights[KNN_NEIGHBOURS],
+      const unsigned long ret_index[KNN_NEIGHBOURS], const kfusion::Intr &intr,
+      const int index, const std::vector<kfusion::deformation_node> &nodes,
+      const std::vector<size_t> &ret_index2, const cv::Affine3f &inverse_pose) {
+    auto cost_function =
+        new ceres::DynamicNumericDiffCostFunction<DynamicFusionEnergyFunction>(
+            new DynamicFusionEnergyFunction(live_vertex, live_normal,
+                                            canonical_vertex, canonical_normal,
+                                            warpField, weights, ret_index,
+                                            intr, index, nodes, ret_index2,
+                                            inverse_pose)); //FIXME: 2 ret_index
+    for (int i = 0; i < KNN_NEIGHBOURS; i++)
+      cost_function->AddParameterBlock(8);
+    cost_function->SetNumResiduals(3); //TODO: Change to 1
+    return cost_function;
+  }
+
+  const cv::Vec3d live_vertex_;
+  const cv::Vec3d live_normal_;
+  const cv::Vec3d canonical_vertex_;
+  const cv::Vec3d canonical_normal_;
+  const kfusion::Intr &intr_;
+  float *weights_;
+  unsigned long *knn_indices_;
+  int index_;
+  kfusion::WarpField *warpField_;
+  const std::vector<kfusion::deformation_node> *nodes_;
+  const std::vector<size_t> ret_index_;
+  cv::Affine3f inverse_pose_;
+};
+
 struct DynamicFusionDataEnergy {
   DynamicFusionDataEnergy(const cv::Vec3d &live_vertex,
                           const cv::Vec3d &live_normal,
