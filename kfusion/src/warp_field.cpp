@@ -8,7 +8,7 @@
 #include <opencv2/core/affine.hpp>
 #include "internal.hpp"
 #include "precomp.hpp"
-// #include <opencv2/core/core.hpp>
+#include <opencv2/core/core.hpp>
 
 using namespace kfusion;
 std::vector<utils::DualQuaternion<double>>
@@ -67,31 +67,6 @@ void WarpField::init(const cv::Mat& first_frame) {
       }
     }
   buildKDTree();
-// =======
-// void WarpField::init(const cv::Mat& first_frame)
-// {
-//     nodes_->resize(first_frame.cols * first_frame.rows);
-//     auto voxel_size = kfusion::KinFuParams::default_params_dynamicfusion().volume_size[0] /
-//                       kfusion::KinFuParams::default_params_dynamicfusion().volume_dims[0];
-
-// //    FIXME:: this is a test, remove later
-//     voxel_size = 1;
-//     int step = 10;
-//     for(size_t i = 0; i < first_frame.rows; i+=step)
-//         for(size_t j = 0; j < first_frame.cols; j+=step)
-//         {
-//             auto point = first_frame.at<Point>(i,j);
-//             if(!std::isnan(point.x))
-//             {
-
-//                 auto t = utils::Quaternion<double>(0,point.x,point.y,point.z);
-//                 nodes_->at(i*first_frame.cols+j).transform = utils::DualQuaternion<double>(t, utils::Quaternion<double>());
-//                 nodes_->at(i*first_frame.cols+j).vertex = Vec3f(point.x,point.y,point.z);
-//                 nodes_->at(i*first_frame.cols+j).weight = 3 * voxel_size;
-//             }
-//         }
-//     buildKDTree();
-// >>>>>>> minhui
 }
 
 /**
@@ -267,29 +242,7 @@ void WarpField::energy_data(const std::vector<Vec3d> &canonical_vertices,
                                                                              intr,
                                                                              i);
         ceres::HuberLoss *loss_function = new ceres::HuberLoss(1.0); 
-        //ceres::TukeyLoss *loss_function = new ceres::TukeyLoss(0.01);
-        // for(int m = 0; m < KNN_NEIGHBOURS; m++) {
-        //     nodes_->at(indices[m]).transform.rotation_.w_ = 1;
-        //     nodes_->at(indices[m]).transform.rotation_.x_ = 2;
-        //     nodes_->at(indices[m]).transform.rotation_.y_ = 3;
-        //     nodes_->at(indices[m]).transform.rotation_.z_ = 4;
-        //     nodes_->at(indices[m]).transform.translation_.w_ = 5;
-        //     nodes_->at(indices[m]).transform.translation_.x_ = 6;
-        //     nodes_->at(indices[m]).transform.translation_.y_ = 7;
-        //     nodes_->at(indices[m]).transform.translation_.z_ = 8;
-            // printf("%f %f %f %f\n", p[m][0], p[m][1], p[m][2], p[m][3]);
-            // printf("%f %f %f %f\n\n", nodes_->at(indices[m]).transform.rotation_.w_, nodes_->at(indices[m]).transform.rotation_.x_
-            //                       , nodes_->at(indices[m]).transform.rotation_.y_, nodes_->at(indices[m]).transform.rotation_.z_);
-        // } 
         problem.AddResidualBlock(cost_function, loss_function /* squared loss */, warpProblem.mutable_epsilon(indices));
-        //problem.AddResidualBlock(cost_function,  NULL /* squared loss */, warpField_->getNodes()->at(indices[0]).transform);
-        //test
-        // std::vector<double*> p = warpProblem.mutable_epsilon(indices);
-        // for(int m = 0; m < KNN_NEIGHBOURS; m++) {
-        //     printf("%f %f %f %f\n", p[m][0], p[m][1], p[m][2], p[m][3]);
-        //     printf("%f %f %f %f\n\n", nodes_->at(indices[m]).transform.rotation_.w_, nodes_->at(indices[m]).transform.rotation_.x_
-        //                           , nodes_->at(indices[m]).transform.rotation_.y_, nodes_->at(indices[m]).transform.rotation_.z_);
-        // }       
     }
     printf("Debug 1\n");
     ceres::Solver::Options options;
@@ -302,15 +255,7 @@ void WarpField::energy_data(const std::vector<Vec3d> &canonical_vertices,
     printf("Debug 2\n");
     ceres::Solve(options, &problem, &summary);
     std::cout << summary.FullReport() << std::endl;
-
-    // auto params = warpProblem.params();
-    // for(int i = 0; i < nodes_->size()*8; i++)
-    // {
-    //     std::cout<<params[i]<<" ";
-    //     if((i+1) % 8 == 0)
-    //         std::cout<<std::endl;
-    // }
-
+    printf("Debug 3\n");
     update_nodes(warpProblem.params());
 }
 

@@ -234,6 +234,7 @@ struct DynamicFusionDataEnergy
         reproject_point[0] = depth * (u - intr_.cx) * intr_.fx;
         reproject_point[1] = depth * (v - intr_.cy) * intr_.fy;
         reproject_point[2] = depth;
+    }
 
 // template <typename T>
 // struct Vec3d {
