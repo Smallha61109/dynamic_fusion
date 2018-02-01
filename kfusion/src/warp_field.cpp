@@ -57,7 +57,7 @@ void WarpField::init(const cv::Mat& first_frame)
             auto point = first_frame.at<Point>(i,j);
             if(!std::isnan(point.x))
             {
-                
+
                 auto t = utils::Quaternion<double>(0,point.x,point.y,point.z);
                 nodes_->at(i*first_frame.cols+j).transform = utils::DualQuaternion<double>(t, utils::Quaternion<double>());
                 nodes_->at(i*first_frame.cols+j).vertex = Vec3f(point.x,point.y,point.z);
@@ -521,8 +521,8 @@ void WarpField::update_nodes(const double *epsilon)
     for (size_t i = 0; i < nodes_->size(); i++)
     {
         // epsilon [0:2] is rotation [3:5] is translation
-        eps.from_twist(epsilon[i*6], epsilon[i*6 +1], epsilon[i*6 + 2],
-                       epsilon[i*6 + 3], epsilon[i*6 + 4], epsilon[i*6 + 5]);
+        eps.from_twist(epsilon[i*8], epsilon[i*8 +1], epsilon[i*8 + 2],
+                       epsilon[i*8 + 4], epsilon[i*8 + 5], epsilon[i*8 + 6]);
         auto tr = eps.getTranslation() + nodes_->at(i).transform.getTranslation();
 //        auto rot = eps.getRotation() + nodes_->at(i).transform.getRotation();
         auto rot = utils::Quaternion<double>();
