@@ -176,32 +176,6 @@ void WarpField::energy_reg(const std::vector<cv::Vec3d>& surface_points,
     getWeightsAndUpdateKNN(surface_points[i], weights);
     // for (int j = 0; j < KNN_NEIGHBOURS; ++j) indices[j] = ret_index_[j];
     counts+=1;
-    std::cout << "=================================================" << std::endl;
-    std::cout << warpProblem.mutable_epsilon(ret_index_)[0][0] << std::endl;
-    std::cout << warpProblem.mutable_epsilon(ret_index_)[0][1] << std::endl;
-    std::cout << warpProblem.mutable_epsilon(ret_index_)[0][2] << std::endl;
-    std::cout << warpProblem.mutable_epsilon(ret_index_)[0][3] << std::endl;
-    std::cout << warpProblem.mutable_epsilon(ret_index_)[0][4] << std::endl;
-    std::cout << warpProblem.mutable_epsilon(ret_index_)[0][5] << std::endl;
-    std::cout << warpProblem.mutable_epsilon(ret_index_)[0][6] << std::endl;
-    std::cout << warpProblem.mutable_epsilon(ret_index_)[0][7] << std::endl;
-    std::cout << "=================================================" << std::endl;
-    std::cout << nodes_->at(ret_index_[0]).transform.rotation_.w_ << std::endl;
-    std::cout << nodes_->at(ret_index_[0]).transform.rotation_.x_ << std::endl;
-    std::cout << nodes_->at(ret_index_[0]).transform.rotation_.y_ << std::endl;
-    std::cout << nodes_->at(ret_index_[0]).transform.rotation_.z_ << std::endl;
-    std::cout << nodes_->at(ret_index_[0]).transform.translation_.w_ << std::endl;
-    std::cout << nodes_->at(ret_index_[0]).transform.translation_.x_ << std::endl;
-    std::cout << nodes_->at(ret_index_[0]).transform.translation_.y_ << std::endl;
-    std::cout << nodes_->at(ret_index_[0]).transform.translation_.z_ << std::endl;
-    std::cout << "=================================================" << std::endl;
-    // std::cout << warpProblem.mutable_epsilon(ret_index_)[1][0] << std::endl;
-    // std::cout << warpProblem.mutable_epsilon(ret_index_)[1][1] << std::endl;
-    // std::cout << warpProblem.mutable_epsilon(ret_index_)[1][2] << std::endl;
-    // std::cout << warpProblem.mutable_epsilon(ret_index_)[1][3] << std::endl;
-    // std::cout << warpProblem.mutable_epsilon(ret_index_)[1][4] << std::endl;
-    // std::cout << warpProblem.mutable_epsilon(ret_index_)[1][5] << std::endl;
-    cv::waitKey(0);
     ceres::CostFunction* cost_function =
       DynamicFusionRegEnergy::Create(*nodes_,
                                      ret_index_,
@@ -218,7 +192,7 @@ void WarpField::energy_reg(const std::vector<cv::Vec3d>& surface_points,
   options.minimizer_progress_to_stdout = true;
   options.num_linear_solver_threads = 12;
   options.num_threads = 12;
-  options.max_num_iterations = 10000;
+  // options.max_num_iterations = 10000;
   ceres::Solver::Summary summary;
   std::cout << "Solving..." << std::endl;
   ceres::Solve(options, &problem, &summary);
