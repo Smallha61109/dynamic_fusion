@@ -103,8 +103,8 @@ struct DynamicFusionApp
                 viz1.setViewerPose(dynamic_fusion.getCameraPose());
             }
 
-            int key = cv::waitKey(pause_ ? 0 : 3);
             show_warp(dynamic_fusion);
+            int key = cv::waitKey(pause_ ? 0 : 1000);
             switch (key) {
                 case 't':
                 case 'T' :
