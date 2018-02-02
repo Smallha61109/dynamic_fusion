@@ -10,6 +10,7 @@ Dependencies:
 * Nanoflann (included in the repository)
 * Boost (libraries system, filesystem and program options. Only used in the demo. Tested with [1.64.0](http://www.boost.org/users/history/version_1_64_0.html))
 * Ceres solver (Tested with version [1.13.0](http://ceres-solver.org/ceres-solver-1.13.0.tar.gz))
+* OpenNI v1.5.4 for getting input straight from a kinect device.
 
 Implicit dependency (needed by opencv_viz):
 * VTK 5.8.0 or higher
@@ -17,7 +18,7 @@ Implicit dependency (needed by opencv_viz):
 Optional dependencies:
 * GTest for testing
 * Doxygen for documentation
-* OpenNI v1.5.4 for getting input straight from a kinect device.
+
 
 ## Building instructions:
 
