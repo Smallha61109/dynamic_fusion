@@ -103,7 +103,7 @@ void WarpField::energy_function(const std::vector<Vec3d>& canonical_vertices,
   live_vertices_ = live_vertices;
   int counts = 0;
 
-  std::cout << "Adding energy function cost function..." << std::endl;
+  std::cout << "Adding energy function cost functions..." << std::endl;
   for (int i = 0; i < canonical_vertices.size(); i++) {
     if (std::isnan(canonical_vertices[i][0]) ||
         std::isnan(canonical_normals[i][0]))
@@ -113,13 +113,13 @@ void WarpField::energy_function(const std::vector<Vec3d>& canonical_vertices,
     counts += 1;
     ceres::CostFunction* cost_function = DynamicFusionEnergyFunction::Create(
         live_vertices[i], live_normals[i], canonical_vertices[i],
-        canonical_normals[i], this, weights, indices, intr, i,
+        canonical_normals[i], this, weights, intr, i,
         *nodes_, ret_index_, inverse_pose);
     // ceres::HuberLoss* loss_function = new ceres::HuberLoss(1.0);
     problem.AddResidualBlock(cost_function, NULL /* squared loss */,
                              warpProblem.mutable_epsilon(ret_index_));
   }
-  std::cout << counts << " cost function added..." << std::endl;
+  std::cout << counts << " cost functions added..." << std::endl;
   std::cout << "Setting ceres options..." << std::endl;
   ceres::Solver::Options options;
   options.linear_solver_type = ceres::SPARSE_SCHUR;

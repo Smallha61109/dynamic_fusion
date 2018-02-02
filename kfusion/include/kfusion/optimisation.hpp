@@ -15,7 +15,6 @@ struct DynamicFusionEnergyFunction {
                               const cv::Vec3d &canonical_normal,
                               kfusion::WarpField *warpField,
                               const float weights[KNN_NEIGHBOURS],
-                              const unsigned long knn_indices[KNN_NEIGHBOURS],
                               const kfusion::Intr &intr,
                               const int &index,
                               const std::vector<kfusion::deformation_node> &nodes,
@@ -35,7 +34,7 @@ struct DynamicFusionEnergyFunction {
     nodes_ = &nodes;
     for (int i = 0; i < KNN_NEIGHBOURS; i++) {
       weights_[i] = weights[i];
-      knn_indices_[i] = knn_indices[i];
+      knn_indices_[i] = ret_index[i];
     }
   }
 
@@ -111,16 +110,12 @@ struct DynamicFusionEnergyFunction {
     if (project_u >= 480 || project_u < 0 || project_v >= 640 ||
         project_v < 0) {
       residuals[0] = 1000000000;
-      residuals[1] = 1000000000;
-      residuals[2] = 1000000000;
       return true;
     }
 
     depth = warpField_->live_vertices_[project_u * 640 + project_v][2];
     if (std::isnan(depth)) {
       residuals[0] = 1000000000;
-      residuals[1] = 1000000000;
-      residuals[2] = 1000000000;
       return true;
     }
 
@@ -152,8 +147,9 @@ struct DynamicFusionEnergyFunction {
     Tic = inverse_pose_.concatenate(i_warp);
     for (int i = 0; i < KNN_NEIGHBOURS; ++i) {
       auto j_point = nodes_->at(ret_index_[i]).vertex;
-      cv::Vec3f j_rot(epsilon_[i][0], epsilon_[i][1], epsilon_[i][2]);
-      cv::Vec3f j_trans(epsilon_[i][3], epsilon_[i][4], epsilon_[i][5]);
+      //FIXME: Converting quaternion to eular.
+      cv::Vec3f j_rot(epsilon_[i][1], epsilon_[i][2], epsilon_[i][3]);
+      cv::Vec3f j_trans(epsilon_[i][5], epsilon_[i][6], epsilon_[i][7]);
       cv::Affine3f j_warp(j_rot, j_trans);
       cv::Affine3f Tjc;
       Tjc = inverse_pose_.concatenate(j_warp);
@@ -189,16 +185,16 @@ struct DynamicFusionEnergyFunction {
       const cv::Vec3d &live_vertex, const cv::Vec3d &live_normal,
       const cv::Vec3d &canonical_vertex, const cv::Vec3d &canonical_normal,
       kfusion::WarpField *warpField, const float weights[KNN_NEIGHBOURS],
-      const unsigned long ret_index[KNN_NEIGHBOURS], const kfusion::Intr &intr,
-      const int index, const std::vector<kfusion::deformation_node> &nodes,
-      const std::vector<size_t> &ret_index2, const cv::Affine3f &inverse_pose) {
+      const kfusion::Intr &intr, const int index,
+      const std::vector<kfusion::deformation_node> &nodes,
+      const std::vector<size_t> &ret_index, const cv::Affine3f &inverse_pose) {
     auto cost_function =
         new ceres::DynamicNumericDiffCostFunction<DynamicFusionEnergyFunction>(
             new DynamicFusionEnergyFunction(live_vertex, live_normal,
                                             canonical_vertex, canonical_normal,
-                                            warpField, weights, ret_index,
-                                            intr, index, nodes, ret_index2,
-                                            inverse_pose)); //FIXME: 2 ret_index
+                                            warpField, weights,
+                                            intr, index, nodes, ret_index,
+                                            inverse_pose));
     for (int i = 0; i < KNN_NEIGHBOURS; i++)
       cost_function->AddParameterBlock(8);
     cost_function->SetNumResiduals(1);
