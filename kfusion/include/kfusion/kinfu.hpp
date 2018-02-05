@@ -57,7 +57,7 @@ namespace kfusion
 
     class KF_EXPORTS KinFu
     {
-    public:        
+    public:
         typedef cv::Ptr<KinFu> Ptr;
 
         KinFu(const KinFuParams& params);

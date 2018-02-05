@@ -430,7 +430,7 @@ void kfusion::KinFu::dynamicfusion(cuda::Depth& depth, cuda::Cloud current_frame
     depth.download(depth_cloud.ptr<void>(), depth_cloud.step);
     cv::Mat display;
     depth_cloud.convertTo(display, CV_8U, 255.0/4000);
-    cv::imshow("Depth diff", display);
+    // cv::imshow("Depth diff", display);
     volume_->compute_points();
     volume_->compute_normals();
 }

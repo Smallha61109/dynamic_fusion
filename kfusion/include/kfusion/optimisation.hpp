@@ -124,9 +124,9 @@ struct DynamicFusionEnergyFunction {
     double dist_x = canonical_point[0] - reproject_point[0];
     double dist_y = canonical_point[1] - reproject_point[1];
     double dist_z = canonical_point[2] - reproject_point[2];
-    double dist_all = sqrt(pow(dist_x, 2) +
-                           pow(dist_y, 2) +
-                           pow(dist_z, 2));
+    double dist_all = ceres::sqrt(ceres::pow(dist_x, 2) +
+                                  ceres::pow(dist_y, 2) +
+                                  ceres::pow(dist_z, 2));
     double tukey =
         dist_all <= threshold ?
             dist_all * ceres::pow((1.0 - (dist_all * dist_all) / (threshold * threshold)), 2)
