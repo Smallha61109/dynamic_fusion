@@ -1,6 +1,7 @@
 DynamicFusion
 ============
 Implementation of [Newcombe et al. 2015 DynamicFusion paper](http://grail.cs.washington.edu/projects/dynamicfusion/papers/DynamicFusion.pdf).
+This repository is forked from https://github.com/mihaibujanca/dynamicfusion , make sure you checkout the origin author's repository.
 
 #### This project is still in active development and does not yet reproduce the results of the paper accurately.
 
